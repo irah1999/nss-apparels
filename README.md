@@ -1,2 +1,2 @@
 # nss-apparels
-NSS Apparels &amp; clothings
+NSS Apparels
