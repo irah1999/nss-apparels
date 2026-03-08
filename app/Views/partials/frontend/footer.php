@@ -9,9 +9,10 @@
                 <span class="text-xl font-bold font-serif italic text-primary-600">NSS APPARELS</span>
             </div>
 
-            <div class="text-sm text-slate-500 dark:text-slate-400">
+            <div class="text-sm text-slate-500 dark:text-slate-400 text-center md:text-left">
                 &copy; <?= date('Y') ?> NSS APPARELS. All rights reserved.
                 <span class="hidden md:inline">| Elevate Your Style</span>
+                <p class="mt-1 text-xs opacity-75">GSTIN: 33CESPJ3443N1Z1</p>
             </div>
 
             <div class="flex items-center gap-6">

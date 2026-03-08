@@ -10,6 +10,10 @@ $routes->get('login', 'Auth::index');
 $routes->post('login', 'Auth::login');
 $routes->get('logout', 'Auth::logout');
 
+$routes->get('contact', 'Contact::index');
+$routes->post('contact/submit', 'Contact::submit');
+
+
 $routes->group('', ['filter' => 'auth'], function ($routes) {
     $routes->get('dashboard', 'Dashboard::index');
 

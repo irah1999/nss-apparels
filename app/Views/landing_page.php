@@ -101,6 +101,10 @@
                             <i data-lucide="mail" class="w-6 h-6 text-primary-400 shrink-0"></i>
                             <p class="text-lg text-slate-300">hello@nssapparels.com</p>
                         </div>
+                        <div class="flex items-center gap-4">
+                            <i data-lucide="file-badge" class="w-6 h-6 text-primary-400 shrink-0"></i>
+                            <p class="text-lg text-slate-300 italic">GSTIN: 33CESPJ3443N1Z1</p>
+                        </div>
                     </div>
                 </div>
                 <div class="h-64 md:h-96 rounded-3xl bg-slate-800 overflow-hidden border-4 border-slate-700 shadow-inner">

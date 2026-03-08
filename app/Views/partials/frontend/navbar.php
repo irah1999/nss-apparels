@@ -15,7 +15,7 @@
         <div class="hidden md:flex items-center gap-8">
             <a href="<?= base_url() ?>" class="font-medium hover:text-primary-600 transition-colors">Home</a>
             <a href="#support" class="font-medium hover:text-primary-600 transition-colors">Support</a>
-            <a href="#contact" class="font-medium hover:text-primary-600 transition-colors">Contact</a>
+            <a href="<?= base_url('contact') ?>" class="font-medium hover:text-primary-600 transition-colors">Contact</a>
             <button @click="toggleDarkMode()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 <i :data-lucide="darkMode ? 'sun' : 'moon'" class="w-5 h-5"></i>
             </button>
@@ -44,7 +44,7 @@
         <div class="flex flex-col p-6 gap-4">
             <a href="<?= base_url() ?>" class="text-lg font-medium">Home</a>
             <a href="#support" class="text-lg font-medium">Support</a>
-            <a href="#contact" class="text-lg font-medium">Contact</a>
+            <a href="<?= base_url('contact') ?>" class="text-lg font-medium">Contact</a>
         </div>
     </div>
 </nav>
