@@ -176,7 +176,7 @@ class Customers extends BaseController
         return $this->processWhatsapp($id, $message, $attachments ?: null, $templateId);
     }
 
-    private function processWhatsapp($customerId, $message, $attachments = null, $templateId = null)
+    private function processWhatsapp($customerId, $message, $attachments = null, $templateId = null, $params = null, $headerMedia = null)
     {
         $customerModel = new \App\Models\CustomerModel();
         $logModel = new \App\Models\WhatsappLogModel();
@@ -191,6 +191,11 @@ class Customers extends BaseController
             return $this->response->setJSON(['status' => 'error', 'message' => 'API Configuration missing']);
         }
 
+        // Auto-replace {name} in message
+        if ($message) {
+            $message = str_replace('{name}', $customer['name'], $message);
+        }
+
         $baseUrl = "https://graph.facebook.com/{$version}/{$phoneId}/messages";
         $results = [];
 
@@ -198,13 +203,46 @@ class Customers extends BaseController
         if ($templateId) {
             $template = $templateModel->find($templateId);
             if ($template) {
+                $components = [];
+
+                // Header Component
+                if ($headerMedia) {
+                    $mediaUrl = base_url('uploads/whatsapp/' . $headerMedia);
+                    $components[] = [
+                        'type' => 'header',
+                        'parameters' => [
+                            [
+                                'type' => 'image',
+                                'image' => ['link' => $mediaUrl]
+                            ]
+                        ]
+                    ];
+                }
+
+                // Body Component (Parameters)
+                if ($params) {
+                    $paramArr = is_string($params) ? json_decode($params, true) : $params;
+                    if (!empty($paramArr)) {
+                        $pElements = [];
+                        foreach ($paramArr as $p) {
+                            $val = str_replace('{name}', $customer['name'], (string)$p);
+                            $pElements[] = ['type' => 'text', 'text' => $val];
+                        }
+                        $components[] = [
+                            'type' => 'body',
+                            'parameters' => $pElements
+                        ];
+                    }
+                }
+
                 $payload = [
                     'messaging_product' => 'whatsapp',
                     'to' => $customer['phone'],
                     'type' => 'template',
                     'template' => [
                         'name' => $template['template_name'],
-                        'language' => ['code' => $template['language']]
+                        'language' => ['code' => $template['language']],
+                        'components' => $components
                     ]
                 ];
                 $results[] = $this->executeCurl($baseUrl, $token, $payload);
@@ -328,14 +366,34 @@ class Customers extends BaseController
     {
         $id = $this->request->getPost('customer_id');
         $message = $this->request->getPost('message');
-        return $this->processWhatsapp($id, $message);
+        $templateId = $this->request->getPost('template_id');
+        $params = $this->request->getPost('params');
+        $headerImage = $this->request->getFile('header_image');
+
+        $processedHeader = null;
+        if ($headerImage && $headerImage->isValid() && !$headerImage->hasMoved()) {
+            $newName = $headerImage->getRandomName();
+            $headerImage->move(ROOTPATH . 'public/uploads/whatsapp', $newName);
+            $processedHeader = $newName;
+        }
+
+        return $this->processWhatsapp($id, $message, null, $templateId, $params, $processedHeader);
     }
 
     public function bulkWhatsapp()
     {
         $message = $this->request->getPost('message');
         $templateId = $this->request->getPost('template_id');
+        $params = $this->request->getPost('params');
         $files = $this->request->getFileMultiple('attachment');
+        $headerImage = $this->request->getFile('header_image');
+
+        $processedHeader = null;
+        if ($headerImage && $headerImage->isValid() && !$headerImage->hasMoved()) {
+            $newName = $headerImage->getRandomName();
+            $headerImage->move(ROOTPATH . 'public/uploads/whatsapp', $newName);
+            $processedHeader = $newName;
+        }
 
         $attachments = [];
         if ($files) {
@@ -356,11 +414,11 @@ class Customers extends BaseController
         }
 
         $customerModel = new \App\Models\CustomerModel();
-        $customers = $customerModel->where('status', 1)->findAll();
+        $customers = $customerModel->findAll(); // Or filter by status if needed
 
         $count = 0;
         foreach ($customers as $customer) {
-            $this->processWhatsapp($customer['id'], $message, $attachments ?: null, $templateId);
+            $this->processWhatsapp($customer['id'], $message, $attachments ?: null, $templateId, $params, $processedHeader);
             $count++;
         }
 
