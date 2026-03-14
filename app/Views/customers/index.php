@@ -8,6 +8,10 @@
             <p class="text-sm text-slate-500 dark:text-slate-400">Manage your business connections</p>
         </div>
         <div class="flex items-center gap-3">
+            <button @click="openModal('bulk-whatsapp')" class="flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 rounded-xl transition-all border border-green-100 dark:border-green-800">
+                <i data-lucide="message-square" class="w-4 h-4"></i>
+                <span class="text-sm font-medium">Bulk WhatsApp</span>
+            </button>
             <button @click="openModal('import')" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-xl transition-all">
                 <i data-lucide="upload-cloud" class="w-4 h-4"></i>
                 <span class="text-sm font-medium">Bulk Import</span>
@@ -200,40 +204,206 @@
 </div>
 
 <!-- WhatsApp Modal -->
-<div id="whatsappModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Send WhatsApp Message</h3>
-            <button onclick="closeModal('whatsappModal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+<div
+    x-data="{ 
+        show: false, 
+        isBulk: false,
+        templates: [], 
+        selectedTemplate: null, 
+        customer: { id: '', name: '', phone: '' },
+        variables: {},
+        headerImage: null,
+        headerPreview: null,
+        isSending: false,
+        
+        async init() {
+            const res = await fetch('<?= base_url('templates/get-approved') ?>');
+            this.templates = await res.json();
+            
+            window.addEventListener('open-whatsapp', (e) => {
+                this.customer = e.detail;
+                this.isBulk = false;
+                this.resetForm();
+                this.show = true;
+            });
+
+            window.addEventListener('open-bulk-whatsapp', () => {
+                this.isBulk = true;
+                this.customer = { id: 'all', name: 'All Selected Customers' };
+                this.resetForm();
+                this.show = true;
+            });
+        },
+
+        resetForm() {
+            this.selectedTemplate = null;
+            this.variables = {};
+            this.headerImage = null;
+            this.headerPreview = null;
+        },
+        
+        get bodyVariables() {
+            if (!this.selectedTemplate) return [];
+            const matches = this.selectedTemplate.body_text.match(/\{\{(\d+)\}\}/g);
+            return matches ? [...new Set(matches)] : [];
+        },
+        
+        get hasImageHeader() {
+            if (!this.selectedTemplate) return false;
+            try {
+                const config = JSON.parse(this.selectedTemplate.header_text);
+                return config.header_type === 'IMAGE';
+            } catch(e) { return false; }
+        },
+        
+        handleFile(e) {
+            const file = e.target.files[0];
+            if(file) {
+                this.headerImage = file;
+                this.headerPreview = URL.createObjectURL(file);
+            }
+        },
+
+        async send() {
+            if (!this.selectedTemplate && !document.getElementById('waMessage').value) {
+                Swal.fire('Error', 'Please select a template or type a message', 'error');
+                return;
+            }
+
+            this.isSending = true;
+            try {
+                const fd = new FormData();
+                if (!this.isBulk) fd.append('customer_id', this.customer.id);
+                
+                if (this.selectedTemplate) {
+                    fd.append('template_id', this.selectedTemplate.id);
+                    const params = this.bodyVariables.map(v => this.variables[v] || '');
+                    fd.append('params', JSON.stringify(params));
+                    
+                    if (this.hasImageHeader && this.headerImage) {
+                        fd.append('header_image', this.headerImage);
+                    }
+                } else {
+                    fd.append('message', document.getElementById('waMessage').value);
+                }
+                
+                const url = this.isBulk ? '<?= base_url('customers/bulk-whatsapp') ?>' : '<?= base_url('customers/send-whatsapp') ?>';
+                const res = await fetch(url, { method: 'POST', body: fd });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    Swal.fire('Success', data.message, 'success');
+                    this.show = false;
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            } catch(e) {
+                Swal.fire('Error', 'Failed to send message', 'error');
+            } finally {
+                this.isSending = false;
+            }
+        }
+    }"
+    x-show="show"
+    class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
+    x-cloak>
+    <div @click.away="show = false" class="bg-white dark:bg-slate-800 w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white" x-text="isBulk ? 'Send Bulk WhatsApp' : 'Send WhatsApp Message'"></h3>
+            <button @click="show = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
                 <i data-lucide="x" class="w-6 h-6"></i>
             </button>
         </div>
-        <form id="whatsappForm" class="p-6 space-y-4">
-            <input type="hidden" name="customer_id" id="waCustomerId">
-            <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">To</label>
-                <input type="text" id="waCustomerName" readonly class="block w-full py-2 px-3 bg-slate-100 dark:bg-slate-700 border-none rounded-lg text-slate-500 dark:text-slate-400">
+
+        <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+            <!-- Recipient Info -->
+            <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Recipient</label>
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-xs" x-text="customer.name.charAt(0)"></div>
+                    <span class="font-bold text-slate-700 dark:text-slate-200" x-text="customer.name"></span>
+                </div>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Select Template</label>
-                <select id="waTemplate" class="block w-full py-2 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white" onchange="updateMessage()">
-                    <option value="">Custom Message</option>
-                    <option value="Welcome to NSS Business! We are glad to have you.">Welcome Template</option>
-                    <option value="Hello! This is a reminder about your account status.">Reminder Template</option>
+
+            <!-- Template Selection -->
+            <div class="space-y-2">
+                <label class="block text-sm font-bold text-slate-700 dark:text-slate-300">Select Template</label>
+                <select
+                    class="block w-full py-3 px-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+                    @change="selectedTemplate = templates.find(t => t.id == $el.value) || null; variables = {}; headerImage = null; headerPreview = null;">
+                    <option value="">Custom Message (Plain Text)</option>
+                    <template x-for="tpl in templates" :key="tpl.id">
+                        <option :value="tpl.id" x-text="tpl.template_name"></option>
+                    </template>
                 </select>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Message</label>
-                <textarea name="message" id="waMessage" required rows="4" class="block w-full py-2 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white" placeholder="Type your message here..."></textarea>
+
+            <!-- Dynamic Header Image -->
+            <template x-if="hasImageHeader">
+                <div class="space-y-3">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300">Header Image</label>
+                    <div class="relative h-40 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/50 overflow-hidden">
+                        <input type="file" @change="handleFile" class="absolute inset-0 opacity-0 cursor-pointer" accept="image/*">
+                        <template x-if="headerPreview">
+                            <img :src="headerPreview" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="!headerPreview">
+                            <div class="text-center">
+                                <i data-lucide="image" class="w-10 h-10 text-slate-300 mx-auto mb-2"></i>
+                                <p class="text-xs text-slate-500">Click to upload header image</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Message / Variables -->
+            <div class="space-y-4">
+                <template x-if="!selectedTemplate">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Message</label>
+                        <textarea id="waMessage" required rows="4" class="block w-full py-3 px-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500" placeholder="Type your message here... use {name} for dynamic name"></textarea>
+                    </div>
+                </template>
+
+                <template x-if="selectedTemplate">
+                    <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl">
+                            <label class="block text-[10px] font-bold text-blue-500 uppercase mb-2">Template Preview</label>
+                            <p class="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap" x-text="selectedTemplate.body_text"></p>
+                        </div>
+
+                        <div class="space-y-3" x-show="bodyVariables.length > 0">
+                            <label class="block text-sm font-bold text-slate-700 dark:text-slate-300">Variables</label>
+                            <div class="grid grid-cols-1 gap-3">
+                                <template x-for="v in bodyVariables" :key="v">
+                                    <div class="relative">
+                                        <label class="absolute -top-2 left-3 px-1 bg-white dark:bg-slate-800 text-[10px] font-bold text-primary-500" x-text="'Variable ' + v"></label>
+                                        <input
+                                            type="text"
+                                            x-model="variables[v]"
+                                            placeholder="Enter value... use {name} for customer name"
+                                            class="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-sm focus:ring-2 focus:ring-primary-500">
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
-            <div class="pt-4 flex items-center justify-end gap-3">
-                <button type="button" onclick="closeModal('whatsappModal')" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 font-medium">Cancel</button>
-                <button type="submit" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg flex items-center gap-2">
-                    <i data-lucide="send" class="w-4 h-4"></i>
-                    Send Now
-                </button>
-            </div>
-        </form>
+        </div>
+
+        <div class="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-3 flex-shrink-0">
+            <button @click="show = false" class="px-6 py-2.5 text-slate-600 dark:text-slate-400 font-bold transition-all hover:text-slate-900">Cancel</button>
+            <button
+                @click="send()"
+                :disabled="isSending"
+                class="px-8 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg shadow-green-500/30 transition-all flex items-center gap-2 disabled:opacity-50">
+                <i x-show="!isSending" data-lucide="send" class="w-4 h-4"></i>
+                <i x-show="isSending" data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                <span x-text="isSending ? (isBulk ? 'Processing...' : 'Sending...') : 'Send Now'"></span>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -308,6 +478,15 @@
         $('.dataTables_length select').addClass('bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 outline-none ml-2 mr-2');
     });
 
+    function sendWA(id, name) {
+        window.dispatchEvent(new CustomEvent('open-whatsapp', {
+            detail: {
+                id,
+                name
+            }
+        }));
+    }
+
     function openModal(type) {
         if (type === 'add') {
             $('#modalTitle').text('Add New Customer');
@@ -315,20 +494,9 @@
             $('#customerId').val('');
             $('#customerModal').removeClass('hidden');
         } else if (type === 'import') {
-            $('#importModal').removeClass('hidden');
+            if ($('#importModal').length) $('#importModal').removeClass('hidden');
         } else if (type === 'bulk-whatsapp') {
-            Swal.fire({
-                title: 'Send Bulk Message?',
-                text: 'This will send messages to all customers in chunks.',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#0ea5e9',
-                confirmButtonText: 'Yes, Send All'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Start bulk processing logic
-                }
-            });
+            window.dispatchEvent(new CustomEvent('open-bulk-whatsapp'));
         }
     }
 
@@ -365,17 +533,6 @@
         $('#customerModal').removeClass('hidden');
     }
 
-    function sendWA(id, name) {
-        $('#waCustomerId').val(id);
-        $('#waCustomerName').val(name);
-        $('#whatsappModal').removeClass('hidden');
-    }
-
-    function updateMessage() {
-        const template = $('#waTemplate').val();
-        if (template) $('#waMessage').val(template);
-    }
-
     $('#customerForm').on('submit', function(e) {
         e.preventDefault();
 
@@ -407,22 +564,15 @@
             contentType: false,
             success: function(res) {
                 if (res.status === 'success') {
-                    closeModal('importModal');
-                    table.ajax.reload();
-                    Swal.fire('Success', res.message, 'success');
+                    if (res.status === 'success') {
+                        closeModal('importModal');
+                        table.ajax.reload();
+                        Swal.fire('Success', res.message, 'success');
+                    }
                 } else {
                     Swal.fire('Error', res.message, 'error');
                 }
             }
-        });
-    });
-
-    $('#whatsappForm').on('submit', function(e) {
-        e.preventDefault();
-        const formData = $(this).serialize();
-        $.post('<?= base_url('customers/send-whatsapp') ?>', formData, function(res) {
-            closeModal('whatsappModal');
-            Swal.fire('Sent', 'WhatsApp message triggered successfully', 'success');
         });
     });
 
