@@ -12,7 +12,18 @@ class WhatsappLogModel extends Model
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
-    protected $allowedFields    = ['customer_id', 'message', 'attachment', 'attachment_type', 'status', 'response_log', 'sent_at'];
+    protected $allowedFields    = [
+        'customer_id',
+        'message',
+        'attachment',
+        'attachment_type',
+        'status',
+        'response_log',
+        'sent_at',
+        'direction',
+        'message_id',
+        'read_status'
+    ];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

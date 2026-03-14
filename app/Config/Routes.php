@@ -31,6 +31,13 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->post('send-chat', 'Customers::sendChat');
     });
 
+    // Templates
+    $routes->group('templates', function ($routes) {
+        $routes->get('/', 'Templates::index');
+        $routes->get('sync', 'Templates::sync');
+        $routes->post('create', 'Templates::create');
+    });
+
     // Admin Only
     $routes->group('', ['filter' => 'admin'], function ($routes) {
         // User Management
@@ -45,3 +52,7 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->post('settings/save', 'Settings::save');
     });
 });
+
+// Public Webhook (No Filter)
+$routes->get('webhook', 'Webhook::verify');
+$routes->post('webhook', 'Webhook::receive');

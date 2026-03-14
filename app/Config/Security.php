@@ -83,4 +83,17 @@ class Security extends BaseConfig
      * @see https://codeigniter4.github.io/userguide/libraries/security.html#redirection-on-failure
      */
     public bool $redirect = (ENVIRONMENT === 'production');
+
+    /**
+     * --------------------------------------------------------------------------
+     * CSRF Exclude URIs
+     * --------------------------------------------------------------------------
+     *
+     * URIs that are excluded from CSRF protection.
+     * Meta WhatsApp webhook POST must bypass CSRF as it has no token.
+     */
+    public array $excludeURIs = [
+        'webhook',
+        'webhook/*',
+    ];
 }

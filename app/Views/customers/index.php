@@ -138,19 +138,32 @@
         <form id="customerForm" class="p-6 space-y-4">
             <input type="hidden" name="id" id="customerId">
             <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name <span class="text-xs text-red-500">(Mandatory)</span></label>
                 <input type="text" name="name" id="name" required class="block w-full py-2 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-slate-900 dark:text-white">
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
-                <input type="email" name="email" id="email" required class="block w-full py-2 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-slate-900 dark:text-white">
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email Address <span class="text-xs text-slate-400">(Optional)</span></label>
+                <input type="email" name="email" id="email" class="block w-full py-2 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-slate-900 dark:text-white">
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
-                <input type="text" name="phone" id="phone" required class="block w-full py-2 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-slate-900 dark:text-white" placeholder="e.g. +919876543210">
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone Number <span class="text-xs text-red-500">(Mandatory)</span></label>
+                <div class="flex gap-2">
+                    <select name="country_code" id="country_code" required class="w-1/3 py-2 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-slate-900 dark:text-white">
+                        <option value="91" selected>🇮🇳 +91</option>
+                        <option value="1">🇺🇸 +1</option>
+                        <option value="7">🇷🇺 +7</option>
+                        <option value="44">🇬🇧 +44</option>
+                        <option value="971">🇦🇪 +971</option>
+                        <option value="65">🇸🇬 +65</option>
+                        <option value="61">🇦🇺 +61</option>
+                    </select>
+                    <input type="text" id="phone_only" required class="flex-1 py-2 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-slate-900 dark:text-white" placeholder="9876543210" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                </div>
+                <input type="hidden" name="phone" id="phone">
+                <p class="text-[10px] text-slate-400 mt-1">Country code will be added automatically.</p>
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Joining Date</label>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Joining Date <span class="text-xs text-slate-400">(Optional)</span></label>
                 <input type="date" name="joining_date" id="joining_date" class="block w-full py-2 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-slate-900 dark:text-white">
             </div>
             <div class="pt-4 flex items-center justify-end gap-3">
@@ -328,7 +341,26 @@
         $('#customerId').val(row.id);
         $('#name').val(row.name);
         $('#email').val(row.email);
-        $('#phone').val(row.phone);
+
+        // Try to separate country code if it matches our list (simple logic)
+        let phone = row.phone.toString();
+        let codes = ['91', '1', '7', '44', '971', '65', '61'];
+        let matched = false;
+
+        for (let code of codes) {
+            if (phone.startsWith(code)) {
+                $('#country_code').val(code);
+                $('#phone_only').val(phone.substring(code.length));
+                matched = true;
+                break;
+            }
+        }
+
+        if (!matched) {
+            $('#country_code').val('91');
+            $('#phone_only').val(phone);
+        }
+
         $('#joining_date').val(row.joining_date);
         $('#customerModal').removeClass('hidden');
     }
@@ -346,6 +378,12 @@
 
     $('#customerForm').on('submit', function(e) {
         e.preventDefault();
+
+        // Combine phone number
+        const countryCode = $('#country_code').val();
+        const phoneOnly = $('#phone_only').val();
+        $('#phone').val(countryCode + phoneOnly);
+
         const formData = $(this).serialize();
         $.post('<?= base_url('customers/save') ?>', formData, function(res) {
             if (res.status === 'success') {

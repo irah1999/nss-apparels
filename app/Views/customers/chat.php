@@ -9,31 +9,66 @@
         newMessage: '',
         isSending: false,
         attachments: [],
+        selectedTemplate: '',
+        showEmoji: false,
         showAddModal: false,
         showBulkModal: false,
         openImportModal: false,
+        newCustomerName: '',
+        newCustomerCountryCode: '+91', // Default to India
+        newCustomerPhone: '',
+        newCustomerEmail: '',
+        isAddingCustomer: false,
         
         async selectCustomer(customer) {
             this.selectedCustomer = customer;
             this.messages = [];
             this.attachments = [];
             this.newMessage = '';
+            this.stopPolling();
             await this.loadHistory();
+            this.startPolling();
             this.$nextTick(() => {
                 const container = this.$refs.messageContainer;
-                container.scrollTop = container.scrollHeight;
+                if (container) container.scrollTop = container.scrollHeight;
                 if (window.lucide) lucide.createIcons();
             });
+        },
+
+        formatPhoneNumber(phone) {
+            // Remove any non-numeric characters for simple display if needed
+            return phone.replace(/\D/g, '');
         },
 
         async loadHistory() {
             if (!this.selectedCustomer) return;
             try {
                 const response = await fetch(`<?= base_url('customers/history') ?>/${this.selectedCustomer.id}`);
-                this.messages = await response.json();
+                const newMessages = await response.json();
+                // Only scroll to bottom if new messages arrived
+                const hadNewMsg = newMessages.length > this.messages.length;
+                this.messages = newMessages;
+                if (hadNewMsg) {
+                    this.$nextTick(() => {
+                        const container = this.$refs.messageContainer;
+                        if (container) container.scrollTop = container.scrollHeight;
+                        if (window.lucide) lucide.createIcons();
+                    });
+                }
             } catch (e) {
                 console.error('Failed to load history', e);
             }
+        },
+
+        startPolling() {
+            if (this._pollInterval) clearInterval(this._pollInterval);
+            this._pollInterval = setInterval(() => {
+                if (this.selectedCustomer) this.loadHistory();
+            }, 5000); // Every 5 seconds
+        },
+
+        stopPolling() {
+            if (this._pollInterval) clearInterval(this._pollInterval);
         },
 
         handleFileSelect(event) {
@@ -49,12 +84,13 @@
         },
 
         async sendMessage() {
-            if (!this.selectedCustomer || (!this.newMessage && !this.attachment)) return;
+            if (!this.selectedCustomer || (!this.newMessage && this.attachments.length === 0 && !this.selectedTemplate)) return;
             
             this.isSending = true;
             const formData = new FormData();
             formData.append('customer_id', this.selectedCustomer.id);
             formData.append('message', this.newMessage);
+            formData.append('template_id', this.selectedTemplate);
             this.attachments.forEach(file => {
                 formData.append('attachment[]', file);
             });
@@ -67,6 +103,7 @@
                 const result = await response.json();
                 if (result.status === 'success') {
                     this.newMessage = '';
+                    this.selectedTemplate = '';
                     this.attachments = [];
                     this.$refs.fileInput.value = '';
                     await this.loadHistory();
@@ -91,25 +128,21 @@
         }
      }">
 
-    <!-- Top Bar with Buttons -->
-    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-4">
-        <div class="flex items-center gap-2">
-            <h2 class="text-xl font-bold text-slate-900 dark:text-white">Customer Chat</h2>
+    <!-- Top Bar -->
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+                <i data-lucide="message-circle" class="w-5 h-5 text-green-600 dark:text-green-400"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white">Customer Chat</h2>
+                <p class="text-xs text-slate-400">WhatsApp 24-hour conversations</p>
+            </div>
         </div>
-        <div class="flex items-center gap-2">
-            <button @click="openImportModal = true" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg transition-colors shadow-sm">
-                <i data-lucide="upload-cloud" class="w-4 h-4"></i>
-                Bulk Import
-            </button>
-            <button @click="showBulkModal = true" class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors shadow-sm">
-                <i data-lucide="send" class="w-4 h-4"></i>
-                Bulk Message
-            </button>
-            <button @click="showAddModal = true" class="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors shadow-sm">
-                <i data-lucide="user-plus" class="w-4 h-4"></i>
-                Add Customer
-            </button>
-        </div>
+        <a href="<?= base_url('customers') ?>" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg text-sm font-medium transition-colors">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            Customers
+        </a>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
@@ -188,20 +221,20 @@
                     <!-- Messages -->
                     <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar" x-ref="messageContainer">
                         <template x-for="msg in messages" :key="msg.id">
-                            <div class="flex" :class="msg.status === 'sent' ? 'justify-end' : 'justify-start'">
+                            <div class="flex" :class="msg.direction === 'outbound' ? 'justify-end' : 'justify-start'">
                                 <div class="max-w-[75%] group relative">
-                                    <div :class="msg.status === 'sent' ? 'bg-primary-600 text-white rounded-2xl rounded-tr-none' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-2xl rounded-tl-none border border-slate-100 dark:border-slate-700'"
-                                        class="p-3 shadow-sm">
+                                    <div :class="msg.direction === 'outbound' ? 'bg-primary-600 text-white rounded-2xl rounded-tr-none' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-2xl rounded-tl-none border border-slate-100 dark:border-slate-700'"
+                                        class="p-3 shadow-sm relative">
 
                                         <!-- Attachment Rendering -->
                                         <template x-if="msg.attachment">
                                             <div class="mb-2 space-y-2">
                                                 <template x-for="(file, idx) in JSON.parse(msg.attachment)" :key="idx">
                                                     <div>
-                                                        <template x-if="JSON.parse(msg.attachment_type)[idx].startsWith('image/')">
+                                                        <template x-if="JSON.parse(msg.attachment_type)[idx] && JSON.parse(msg.attachment_type)[idx].startsWith('image/')">
                                                             <img :src="'<?= base_url('uploads/whatsapp') ?>/' + file" class="rounded-lg max-h-64 cursor-pointer hover:opacity-90 w-full object-cover" @click="window.open('<?= base_url('uploads/whatsapp') ?>/' + file)">
                                                         </template>
-                                                        <template x-if="!JSON.parse(msg.attachment_type)[idx].startsWith('image/')">
+                                                        <template x-if="JSON.parse(msg.attachment_type)[idx] && !JSON.parse(msg.attachment_type)[idx].startsWith('image/')">
                                                             <a :href="'<?= base_url('uploads/whatsapp') ?>/' + file" target="_blank" class="flex items-center gap-2 p-2 bg-black/10 rounded-lg hover:bg-black/20 transition-colors text-inherit decoration-none">
                                                                 <i data-lucide="file-text" class="w-5 h-5 opacity-70 border-none"></i>
                                                                 <span class="text-xs font-medium truncate" x-text="file"></span>
@@ -212,11 +245,11 @@
                                             </div>
                                         </template>
 
-                                        <p class="text-sm whitespace-pre-wrap leading-relaxed" x-text="msg.message"></p>
+                                        <p class="text-sm whitespace-pre-wrap leading-relaxed font-semibold mb-1" x-text="msg.message"></p>
                                         <div class="flex items-center justify-end gap-1 mt-1 opacity-70">
                                             <span class="text-[10px]" x-text="formatTime(msg.sent_at)"></span>
-                                            <template x-if="msg.status === 'sent'">
-                                                <i data-lucide="check-check" class="w-3 h-3"></i>
+                                            <template x-if="msg.direction === 'outbound'">
+                                                <i :data-lucide="msg.read_status === 'read' ? 'check-check' : 'check'" :class="msg.read_status === 'read' ? 'text-blue-300' : 'text-slate-300'" class="w-3 h-3"></i>
                                             </template>
                                         </div>
                                     </div>
@@ -238,6 +271,7 @@
 
                     <!-- Input Area -->
                     <div class="p-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+
                         <!-- Attachment Previews -->
                         <div x-show="attachments.length > 0" class="mb-3 flex flex-wrap gap-2" x-cloak>
                             <template x-for="(file, index) in attachments" :key="index">
@@ -256,12 +290,29 @@
                         </div>
 
                         <div class="flex items-end gap-3">
-                            <div class="flex items-center gap-1 shrink-0 mb-1">
-                                <button class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-full transition-colors"><i data-lucide="smile" class="w-6 h-6"></i></button>
-                                <button @click="$refs.fileInput.click()" class="flex items-center gap-2 p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl transition-all relative border border-slate-200 dark:border-slate-700" :class="attachments.length > 0 ? 'text-primary-600 bg-primary-50 border-primary-500' : ''">
+                            <div class="flex items-center gap-1 shrink-0 mb-1 relative">
+                                <!-- Emoji Picker -->
+                                <div class="relative">
+                                    <button type="button" @click="showEmoji = !showEmoji" class="p-2 text-slate-400 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/10 rounded-full transition-colors" title="Emoji">
+                                        <i data-lucide="smile" class="w-6 h-6"></i>
+                                    </button>
+                                    <div x-show="showEmoji" @click.away="showEmoji = false" x-cloak
+                                        class="absolute bottom-12 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700"
+                                        style="width: 320px;">
+                                        <emoji-picker id="emojiPicker" class="light"></emoji-picker>
+                                    </div>
+                                </div>
+
+                                <!-- Send Image Button -->
+                                <button @click="$refs.imageInput.click()" class="flex items-center gap-2 p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl transition-all relative border border-slate-200 dark:border-slate-700" :class="attachments.filter(f => f.type.startsWith('image/')).length > 0 ? 'text-primary-600 bg-primary-50 border-primary-500' : ''" title="Send Image">
+                                    <i data-lucide="image" class="w-5 h-5"></i>
+                                    <input type="file" x-ref="imageInput" @change="handleFileSelect" class="hidden" accept="image/*" multiple>
+                                </button>
+
+                                <!-- Send File Button -->
+                                <button @click="$refs.fileInput.click()" class="flex items-center gap-2 p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl transition-all relative border border-slate-200 dark:border-slate-700" :class="attachments.filter(f => !f.type.startsWith('image/')).length > 0 ? 'text-primary-600 bg-primary-50 border-primary-500' : ''" title="Send Document">
                                     <i data-lucide="paperclip" class="w-5 h-5"></i>
-                                    <span class="text-xs font-medium hidden md:block" x-text="attachments.length > 0 ? attachments.length + ' Files' : 'Attach'"></span>
-                                    <input type="file" x-ref="fileInput" @change="handleFileSelect" class="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple>
+                                    <input type="file" x-ref="fileInput" @change="handleFileSelect" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple>
                                 </button>
                             </div>
                             <div class="flex-1 relative">
@@ -313,22 +364,35 @@
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">Add New Customer</h3>
                 <button @click="showAddModal = false" class="p-1 text-slate-400 hover:text-red-500"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            <form action="<?= base_url('customers/save') ?>" method="POST" @submit.prevent="const fd = new FormData($el); fetch($el.action, {method: 'POST', body: fd}).then(r => r.json()).then(res => { if(res.status === 'success') { location.reload(); } else { Swal.fire('Error', res.message, 'error')} })">
+            <form action="<?= base_url('customers/save') ?>" method="POST" @submit.prevent="const fd = new FormData($el); const fullPhone = fd.get('country_code') + fd.get('phone_only'); fd.set('phone', fullPhone); fetch($el.action, {method: 'POST', body: fd}).then(r => r.json()).then(res => { if(res.status === 'success') { location.reload(); } else { Swal.fire('Error', res.message, 'error')} })">
                 <div class="p-6 space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name <span class="text-xs text-red-500">(Mandatory)</span></label>
                         <input type="text" name="name" required class="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none dark:text-white">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone (WhatsApp)</label>
-                        <input type="text" name="phone" required placeholder="e.g. 919876543210" class="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none dark:text-white">
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Phone (WhatsApp) <span class="text-xs text-red-500">(Mandatory)</span></label>
+                        <div class="flex gap-2">
+                            <select name="country_code" required class="w-1/3 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none dark:text-white">
+                                <option value="91" selected>🇮🇳 +91 (IN)</option>
+                                <option value="1">🇺🇸 +1 (US)</option>
+                                <option value="7">🇷🇺 +7 (RU)</option>
+                                <option value="44">🇬🇧 +44 (UK)</option>
+                                <option value="971">🇦🇪 +971 (UAE)</option>
+                                <option value="65">🇸🇬 +65 (SG)</option>
+                                <option value="61">🇦🇺 +61 (AU)</option>
+                            </select>
+                            <input type="text" name="phone_only" required placeholder="9876543210" class="flex-1 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none dark:text-white" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                        </div>
+                        <input type="hidden" name="phone" id="full_phone_hidden">
+                        <p class="text-[10px] text-slate-400 mt-1">Country code will be added automatically (e.g. 91xxxxxxxxxx)</p>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email (Optional)</label>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email <span class="text-xs text-slate-400">(Optional)</span></label>
                         <input type="email" name="email" class="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none dark:text-white">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Joining Date</label>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Joining Date <span class="text-xs text-slate-400">(Optional)</span></label>
                         <input type="date" name="joining_date" value="<?= date('Y-m-d') ?>" class="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none dark:text-white">
                     </div>
                 </div>
@@ -362,25 +426,34 @@
                         <p class="text-sm text-amber-800 dark:text-amber-300">Bulk messaging will send this content to <strong><?= count($customers) ?> active customers</strong>. Ensure your API limits allow this.</p>
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Use Approved Template (Marketing)</label>
+                        <select name="template_id" class="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white" onchange="const t = this.options[this.selectedIndex].getAttribute('data-body'); if(t) { this.form.message.value = t; }">
+                            <option value="">No Template (Custom Text)</option>
+                            <?php foreach ($templates as $tpl): ?>
+                                <option value="<?= $tpl['id'] ?>" data-body="<?= htmlspecialchars($tpl['body_text']) ?>"><?= ucwords(str_replace('_', ' ', $tpl['template_name'])) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="text-[10px] text-amber-500 mt-1 font-semibold">Note: Templates are processed faster and avoid 24-hr blocks.</p>
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Message Content</label>
                         <textarea name="message" required rows="6" placeholder="Hi {{name}}, welcome to NSS Business..." class="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none dark:text-white resize-none"></textarea>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Attachment (Image/PDF/Doc)</label>
-                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 dark:border-slate-700 border-dashed rounded-xl transition-all hover:border-primary-500">
-                            <div class="space-y-1 text-center">
-                                <i data-lucide="paperclip" class="mx-auto h-10 w-10 text-slate-400"></i>
-                                <div class="flex text-sm text-slate-600 dark:text-slate-400">
-                                    <label class="relative cursor-pointer bg-white dark:bg-slate-800 rounded-md font-medium text-primary-600 hover:text-primary-500">
-                                        <span>Upload files</span>
-                                        <input type="file" name="attachment[]" class="sr-only" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple @change="const files = Array.from($el.files).slice(0, 3); $el.closest('.space-y-1').querySelector('.file-names').innerText = files.map(f => f.name).join(', ')">
-                                    </label>
-                                    <p class="pl-1">or drag and drop</p>
-                                </div>
-                                <p class="text-xs text-slate-500">PNG, JPG, PDF, DOC (MAX 3 files)</p>
-                                <p class="file-names text-sm font-bold text-primary-500 mt-2"></p>
-                            </div>
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <button type="button" @click="$refs.bulkImageInput.click()" class="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-all group">
+                                <i data-lucide="image" class="w-5 h-5 text-slate-400 group-hover:text-primary-500"></i>
+                                <span class="text-sm font-medium text-slate-600 dark:text-slate-400 group-hover:text-primary-600">Add Images</span>
+                                <input type="file" x-ref="bulkImageInput" name="attachment[]" class="hidden" accept="image/*" multiple @change="$el.closest('.space-y-4').querySelector('.file-names').innerText = Array.from($el.files).map(f => f.name).join(', ')">
+                            </button>
+                            <button type="button" @click="$refs.bulkFileInput.click()" class="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/10 transition-all group">
+                                <i data-lucide="file-text" class="w-5 h-5 text-slate-400 group-hover:text-primary-500"></i>
+                                <span class="text-sm font-medium text-slate-600 dark:text-slate-400 group-hover:text-primary-600">Add Files</span>
+                                <input type="file" x-ref="bulkFileInput" name="attachment[]" class="hidden" accept=".pdf,.doc,.docx" multiple @change="$el.closest('.space-y-4').querySelector('.file-names').innerText = Array.from($el.files).map(f => f.name).join(', ')">
+                            </button>
                         </div>
+                        <p class="file-names text-sm font-bold text-primary-500 truncate text-center"></p>
                     </div>
                 </div>
                 <div class="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3">
@@ -453,5 +526,29 @@
     document.addEventListener('alpine:init', () => {
         // Alpine data is structured in x-data above
     });
+
+    // Connect emoji picker to textarea
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            const picker = document.getElementById('emojiPicker');
+            if (picker) {
+                picker.addEventListener('emoji-click', event => {
+                    const emoji = event.detail.unicode;
+                    const ta = document.querySelector('textarea[placeholder="Type a message..."]');
+                    if (!ta) return;
+                    const start = ta.selectionStart ?? ta.value.length;
+                    const end = ta.selectionEnd ?? ta.value.length;
+                    ta.value = ta.value.slice(0, start) + emoji + ta.value.slice(end);
+                    ta.selectionStart = ta.selectionEnd = start + emoji.length;
+                    ta.dispatchEvent(new Event('input'));
+                    ta.focus();
+                    // Close picker via Alpine
+                    const root = ta.closest('[x-data]');
+                    if (root && root._x_dataStack) root._x_dataStack[0].showEmoji = false;
+                });
+            }
+        }, 800);
+    });
 </script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 <?= $this->endSection() ?>

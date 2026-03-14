@@ -125,11 +125,15 @@ class Customers extends BaseController
     public function chat()
     {
         $customerModel = new \App\Models\CustomerModel();
+        $templateModel = new \App\Models\TemplateModel();
+
         $customers = $customerModel->orderBy('name', 'ASC')->findAll();
+        $templates = $templateModel->where('status', 'APPROVED')->findAll();
 
         $data = [
             'title' => 'Customers with Chat',
-            'customers' => $customers
+            'customers' => $customers,
+            'templates' => $templates
         ];
         return view('customers/chat', $data);
     }
@@ -148,6 +152,7 @@ class Customers extends BaseController
     {
         $id = $this->request->getPost('customer_id');
         $message = $this->request->getPost('message');
+        $templateId = $this->request->getPost('template_id'); // Added this
         $files = $this->request->getFileMultiple('attachment');
 
         $attachments = [];
@@ -168,48 +173,129 @@ class Customers extends BaseController
             }
         }
 
-        return $this->processWhatsapp($id, $message, $attachments ?: null);
+        return $this->processWhatsapp($id, $message, $attachments ?: null, $templateId);
     }
 
-    private function processWhatsapp($customerId, $message, $attachments = null)
+    private function processWhatsapp($customerId, $message, $attachments = null, $templateId = null)
     {
         $customerModel = new \App\Models\CustomerModel();
-        $configModel = new \App\Models\ConfigModel();
         $logModel = new \App\Models\WhatsappLogModel();
+        $templateModel = new \App\Models\TemplateModel();
 
         $customer = $customerModel->find($customerId);
-        $token = $configModel->where('config_key', 'whatsapp_token')->first()['config_value'] ?? '';
-        $phoneId = $configModel->where('config_key', 'whatsapp_api_id')->first()['config_value'] ?? '';
-
-        $attachmentField = $attachments ? json_encode(array_column($attachments, 'name')) : null;
-        $typeField = $attachments ? json_encode(array_column($attachments, 'type')) : null;
+        $token = env('WHATSAPP_API_TOKEN');
+        $phoneId = env('WHATSAPP_PHONE_NUMBER_ID');
+        $version = env('WHATSAPP_VERSION', 'v21.0');
 
         if (!$customer || !$token || !$phoneId) {
-            $logModel->insert([
-                'customer_id' => $customerId,
-                'message'     => $message,
-                'attachment'  => $attachmentField,
-                'attachment_type' => $typeField,
-                'status'      => 'failed',
-                'response_log' => 'Missing API Configuration',
-                'sent_at'     => date('Y-m-d H:i:s')
-            ]);
             return $this->response->setJSON(['status' => 'error', 'message' => 'API Configuration missing']);
         }
 
-        // Real API Call logic would iterate through attachments
+        $baseUrl = "https://graph.facebook.com/{$version}/{$phoneId}/messages";
+        $results = [];
+
+        // CASE 1: Sending Template (Marketing / Bulk)
+        if ($templateId) {
+            $template = $templateModel->find($templateId);
+            if ($template) {
+                $payload = [
+                    'messaging_product' => 'whatsapp',
+                    'to' => $customer['phone'],
+                    'type' => 'template',
+                    'template' => [
+                        'name' => $template['template_name'],
+                        'language' => ['code' => $template['language']]
+                    ]
+                ];
+                $results[] = $this->executeCurl($baseUrl, $token, $payload);
+            }
+        }
+        // CASE 2: Free-form text
+        elseif (!empty($message)) {
+            $payload = [
+                'messaging_product' => 'whatsapp',
+                'recipient_type'    => 'individual',
+                'to'               => $customer['phone'],
+                'type'             => 'text',
+                'text'             => ['body' => $message]
+            ];
+            $results[] = $this->executeCurl($baseUrl, $token, $payload);
+        }
+
+        // CASE 3: Media
+        if ($attachments) {
+            foreach ($attachments as $file) {
+                $isImage = strpos($file['type'], 'image/') === 0;
+                $payload = [
+                    'messaging_product' => 'whatsapp',
+                    'to' => $customer['phone'],
+                    'type' => $isImage ? 'image' : 'document'
+                ];
+                $payload[$isImage ? 'image' : 'document'] = [
+                    'link' => base_url('uploads/whatsapp/' . $file['name']),
+                    'caption' => $file['original_name']
+                ];
+                $results[] = $this->executeCurl($baseUrl, $token, $payload);
+            }
+        }
+
+        $success = false;
+        $msgIds = [];
+        foreach ($results as $res) {
+            if ($res['status'] === 'success') {
+                $success = true;
+                if (isset($res['data']['messages'][0]['id'])) {
+                    $msgIds[] = $res['data']['messages'][0]['id'];
+                }
+            }
+        }
 
         $logModel->insert([
             'customer_id' => $customerId,
-            'message'     => $message,
-            'attachment'  => $attachmentField,
-            'attachment_type' => $typeField,
-            'status'      => 'sent',
-            'response_log' => 'Simulated success',
+            'message'     => $message ?: ($templateId ? "Template: " . ($template['template_name'] ?? '') : 'Media Message'),
+            'attachment'  => $attachments ? json_encode(array_column($attachments, 'name')) : null,
+            'attachment_type' => $attachments ? json_encode(array_column($attachments, 'type')) : null,
+            'direction'   => 'outbound',
+            'message_id'  => $msgIds ? implode(',', $msgIds) : null,
+            'status'      => $success ? 'sent' : 'failed',
+            'response_log' => json_encode($results),
             'sent_at'     => date('Y-m-d H:i:s')
         ]);
 
-        return $this->response->setJSON(['status' => 'success', 'message' => 'Message sent successfully']);
+        return $this->response->setJSON([
+            'status' => $success ? 'success' : 'error',
+            'message' => $success ? 'Message sent' : 'Failed to send',
+            'details' => $results
+        ]);
+    }
+
+    private function executeCurl($url, $token, $payload)
+    {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "Authorization: Bearer " . $token,
+            "Content-Type: application/json"
+        ]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            return ['status' => 'error', 'message' => $error];
+        }
+
+        $resData = json_decode($response, true);
+        if ($httpCode >= 200 && $httpCode < 300) {
+            return ['status' => 'success', 'data' => $resData];
+        } else {
+            return ['status' => 'error', 'message' => $resData['error']['message'] ?? 'API Error', 'code' => $httpCode];
+        }
     }
 
     public function sendWhatsapp()
@@ -222,6 +308,7 @@ class Customers extends BaseController
     public function bulkWhatsapp()
     {
         $message = $this->request->getPost('message');
+        $templateId = $this->request->getPost('template_id');
         $files = $this->request->getFileMultiple('attachment');
 
         $attachments = [];
@@ -247,7 +334,7 @@ class Customers extends BaseController
 
         $count = 0;
         foreach ($customers as $customer) {
-            $this->processWhatsapp($customer['id'], $message, $attachments ?: null);
+            $this->processWhatsapp($customer['id'], $message, $attachments ?: null, $templateId);
             $count++;
         }
 

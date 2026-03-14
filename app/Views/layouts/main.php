@@ -139,6 +139,12 @@
                         <span class="ms-3">Customers Chat</span>
                     </a>
                 </li>
+                <li>
+                    <a href="<?= base_url('templates') ?>" class="flex items-center p-2 text-slate-900 rounded-lg dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700 group <?= strpos(current_url(), 'templates') !== false ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400' : '' ?>">
+                        <i data-lucide="layout-template" class="w-5 h-5"></i>
+                        <span class="ms-3">WhatsApp Templates</span>
+                    </a>
+                </li>
 
                 <?php if (session()->get('role') == 'admin'): ?>
                     <div class="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
