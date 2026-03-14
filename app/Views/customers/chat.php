@@ -309,10 +309,16 @@
                                     <input type="file" x-ref="imageInput" @change="handleFileSelect" class="hidden" accept="image/*" multiple>
                                 </button>
 
+                                <!-- Send Video Button -->
+                                <button @click="$refs.videoInput.click()" class="flex items-center gap-2 p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl transition-all relative border border-slate-200 dark:border-slate-700" :class="attachments.filter(f => f.type.startsWith('video/')).length > 0 ? 'text-primary-600 bg-primary-50 border-primary-500' : ''" title="Send Video">
+                                    <i data-lucide="video" class="w-5 h-5"></i>
+                                    <input type="file" x-ref="videoInput" @change="handleFileSelect" class="hidden" accept="video/mp4,video/3gpp" multiple>
+                                </button>
+
                                 <!-- Send File Button -->
-                                <button @click="$refs.fileInput.click()" class="flex items-center gap-2 p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl transition-all relative border border-slate-200 dark:border-slate-700" :class="attachments.filter(f => !f.type.startsWith('image/')).length > 0 ? 'text-primary-600 bg-primary-50 border-primary-500' : ''" title="Send Document">
+                                <button @click="$refs.fileInput.click()" class="flex items-center gap-2 p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl transition-all relative border border-slate-200 dark:border-slate-700" :class="attachments.filter(f => !f.type.startsWith('image/') && !f.type.startsWith('video/')).length > 0 ? 'text-primary-600 bg-primary-50 border-primary-500' : ''" title="Send Document">
                                     <i data-lucide="paperclip" class="w-5 h-5"></i>
-                                    <input type="file" x-ref="fileInput" @change="handleFileSelect" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple>
+                                    <input type="file" x-ref="fileInput" @change="handleFileSelect" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" multiple>
                                 </button>
                             </div>
                             <div class="flex-1 relative">

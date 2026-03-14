@@ -36,6 +36,7 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->get('/', 'Templates::index');
         $routes->get('sync', 'Templates::sync');
         $routes->post('create', 'Templates::create');
+        $routes->post('uploadMedia', 'Templates::uploadMedia');
     });
 
     // Admin Only
