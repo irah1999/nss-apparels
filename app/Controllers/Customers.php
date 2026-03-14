@@ -225,16 +225,42 @@ class Customers extends BaseController
         // CASE 3: Media
         if ($attachments) {
             foreach ($attachments as $file) {
-                $isImage = strpos($file['type'], 'image/') === 0;
+                $mime = $file['type'];
+                $type = 'document'; // default
+
+                if (strpos($mime, 'image/') === 0) {
+                    $type = 'image';
+                } elseif (strpos($mime, 'video/') === 0) {
+                    $type = 'video';
+                } elseif (strpos($mime, 'audio/') === 0) {
+                    $type = 'audio';
+                }
+
                 $payload = [
                     'messaging_product' => 'whatsapp',
                     'to' => $customer['phone'],
-                    'type' => $isImage ? 'image' : 'document'
+                    'type' => $type
                 ];
-                $payload[$isImage ? 'image' : 'document'] = [
-                    'link' => base_url('uploads/whatsapp/' . $file['name']),
-                    'caption' => $file['original_name']
+
+                // Detect public URL for media if on localhost (important for ngrok)
+                $mediaLink = base_url('uploads/whatsapp/' . $file['name']);
+                if (strpos($mediaLink, 'localhost') !== false || strpos($mediaLink, '127.0.0.1') !== false) {
+                    $publicHost = $this->request->getServer('HTTP_X_FORWARDED_HOST') ?: $this->request->getServer('HTTP_HOST');
+                    if ($publicHost && strpos($publicHost, 'localhost') === false) {
+                        $protocol = $this->request->getServer('HTTP_X_FORWARDED_PROTO') ?: 'http';
+                        $mediaLink = $protocol . '://' . rtrim($publicHost, '/') . '/uploads/whatsapp/' . $file['name'];
+                    }
+                }
+
+                $payload[$type] = [
+                    'link' => $mediaLink
                 ];
+
+                // Audio doesn't support caption
+                if ($type !== 'audio') {
+                    $payload[$type]['caption'] = $file['original_name'];
+                }
+
                 $results[] = $this->executeCurl($baseUrl, $token, $payload);
             }
         }
