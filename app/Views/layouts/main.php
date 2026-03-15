@@ -148,6 +148,21 @@
 
                 <?php if (session()->get('role') == 'admin'): ?>
                     <div class="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+                        <span class="px-3 text-xs font-semibold text-slate-500 uppercase">E-Commerce</span>
+                    </div>
+                    <li>
+                        <a href="<?= base_url('catalog/categories') ?>" class="flex items-center p-2 text-slate-900 rounded-lg dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700 group <?= strpos(current_url(), 'catalog/categories') !== false ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400' : '' ?>">
+                            <i data-lucide="folders" class="w-5 h-5"></i>
+                            <span class="ms-3">Categories</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="<?= base_url('catalog/products') ?>" class="flex items-center p-2 text-slate-900 rounded-lg dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700 group <?= strpos(current_url(), 'catalog/products') !== false ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400' : '' ?>">
+                            <i data-lucide="package" class="w-5 h-5"></i>
+                            <span class="ms-3">Products</span>
+                        </a>
+                    </li>
+                    <div class="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
                         <span class="px-3 text-xs font-semibold text-slate-500 uppercase">Administration</span>
                     </div>
                     <li>

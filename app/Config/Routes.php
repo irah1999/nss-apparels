@@ -50,11 +50,30 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
             $routes->post('delete', 'Users::delete');
         });
 
+        // Product Catalog Management
+        $routes->group('catalog', function ($routes) {
+            $routes->get('categories', 'Catalog::categories');
+            $routes->post('categories_list', 'Catalog::categories_list');
+            $routes->post('save_category', 'Catalog::save_category');
+            $routes->post('delete_category', 'Catalog::delete_category');
+
+            $routes->get('products', 'Catalog::products');
+            $routes->get('products/(:num)', 'Catalog::products/$1');
+            $routes->post('save_product', 'Catalog::save_product');
+        });
+
+        $routes->get('catalog-json', 'Catalog::get_catalog');
+
         // Settings
         $routes->get('settings', 'Settings::index');
         $routes->post('settings/save', 'Settings::save');
     });
 });
+
+// Public Catalog
+$routes->get('products', 'CatalogPublic::index');
+$routes->get('products/(:num)', 'CatalogPublic::index/$1');
+$routes->get('product-detail/(:num)', 'CatalogPublic::detail/$1');
 
 // Public Webhook (No Filter)
 $routes->get('webhook', 'Webhook::verify');

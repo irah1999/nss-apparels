@@ -52,11 +52,15 @@
             </a>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            <?= $this->setData(['title' => "Men's Apparel", 'img' => 'https://images.unsplash.com/photo-1594932224010-74f43a185664?q=80&w=500&auto=format&fit=crop'])->include('partials/frontend/category_card') ?>
-            <?= $this->setData(['title' => "Women's Fashion", 'img' => 'https://images.unsplash.com/photo-1539109132382-381bb3f1c2b3?q=80&w=500&auto=format&fit=crop'])->include('partials/frontend/category_card') ?>
-            <?= $this->setData(['title' => "Kids Wear", 'img' => 'https://images.unsplash.com/photo-1621335829175-95f437384d7c?q=80&w=500&auto=format&fit=crop'])->include('partials/frontend/category_card') ?>
-            <?= $this->setData(['title' => "Accessories", 'img' => 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?q=80&w=500&auto=format&fit=crop'])->include('partials/frontend/category_card') ?>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <?php foreach ($categories as $cat): ?>
+                <?= $this->setData([
+                    'id' => $cat['id'],
+                    'title' => $cat['name'],
+                    'img' => $cat['image'] ? base_url($cat['image']) : 'https://images.unsplash.com/photo-1594932224010-74f43a185664?q=80&w=500&auto=format&fit=crop',
+                    'products' => $cat['products'] ?? []
+                ])->include('partials/frontend/category_card') ?>
+            <?php endforeach; ?>
         </div>
     </div>
 </section>
