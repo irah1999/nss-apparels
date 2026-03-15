@@ -1,131 +1,189 @@
 <?= $this->extend('layouts/main') ?>
 
 <?= $this->section('content') ?>
-<div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
+    x-data="{
+        customers: [],
+        searchQuery: '',
+        perPage: 30,
+        offset: 0,
+        totalRecords: 0,
+        orderBy: 'name',
+        orderDir: 'ASC',
+        isLoading: false,
+
+        // Modal triggers binding to update list 
+        whatsappShow: false,
+
+        async init() {
+            this.loadCustomers();
+
+            this.$watch('searchQuery', (value) => {
+                this.offset = 0;
+                this.loadCustomers();
+            });
+
+            window.addEventListener('open-whatsapp', (e) => {
+                // this state is handled in script or whatsapp modal layer below
+            });
+        },
+
+        async loadCustomers() {
+            this.isLoading = true;
+            try {
+                const fd = new FormData();
+                fd.append('draw', 1);
+                fd.append('start', this.offset);
+                fd.append('length', this.perPage);
+                fd.append('search[value]', this.searchQuery);
+                fd.append('order[0][column]', 0); 
+                fd.append('columns[0][data]', this.orderBy);
+                fd.append('order[0][dir]', this.orderDir);
+
+                const res = await fetch('<?= base_url('customers/list') ?>', { method: 'POST', body: fd });
+                const data = await res.json();
+                this.customers = data.data;
+                this.totalRecords = data.recordsFiltered;
+                
+                this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+            } catch(e) { console.error('Load failed', e); }
+            finally { this.isLoading = false; }
+        },
+
+        get totalPages() { return Math.ceil(this.totalRecords / this.perPage); }
+    }">
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">Customers</h3>
-            <p class="text-sm text-slate-500 dark:text-slate-400">Manage your business connections</p>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white">Customers</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Manage your business connections</p>
         </div>
-        <div class="flex items-center gap-3">
-            <button @click="openModal('bulk-whatsapp')" class="flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 rounded-xl transition-all border border-green-100 dark:border-green-800">
+        <div class="flex flex-wrap items-center gap-2">
+            <button @click="openModal('bulk-whatsapp')" class="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 rounded-xl transition-all border border-green-100 dark:border-green-800" title="Bulk WhatsApp">
                 <i data-lucide="message-square" class="w-4 h-4"></i>
-                <span class="text-sm font-medium">Bulk WhatsApp</span>
+                <span class="text-sm font-medium hidden sm:inline">Bulk WhatsApp</span>
             </button>
-            <button @click="openModal('import')" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-xl transition-all">
+            <button @click="openModal('import')" class="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-xl transition-all" title="Bulk Import">
                 <i data-lucide="upload-cloud" class="w-4 h-4"></i>
-                <span class="text-sm font-medium">Bulk Import</span>
+                <span class="text-sm font-medium hidden sm:inline">Bulk Import</span>
             </button>
-            <button @click="openModal('add')" class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-lg shadow-primary-500/30 transition-all">
+            <button @click="openModal('add')" class="flex items-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-lg shadow-primary-500/30 transition-all" title="Add Customer">
                 <i data-lucide="plus" class="w-4 h-4"></i>
-                <span class="text-sm font-medium">Add Customer</span>
+                <span class="text-sm font-medium hidden sm:inline">Add Customer</span>
             </button>
         </div>
     </div>
 
-    <style>
-        @media screen and (max-width: 767px) {
-            #customersTable thead {
-                display: none;
-            }
-
-            #customersTable,
-            #customersTable tbody,
-            #customersTable tr,
-            #customersTable td {
-                display: block;
-                width: 100%;
-            }
-
-            #customersTable tr {
-                margin-bottom: 1.5rem;
-                border: 1px solid #e5e7eb;
-                border-radius: 1rem;
-                padding: 0.5rem;
-                background: white;
-                box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-            }
-
-            .dark #customersTable tr {
-                border-color: #374151;
-                background: #1e293b;
-            }
-
-            #customersTable td {
-                text-align: right;
-                padding: 0.75rem 1rem;
-                position: relative;
-                border: none !important;
-                min-height: 2.5rem;
-                color: #1e293b;
-                font-weight: 500;
-            }
-
-            .dark #customersTable td {
-                color: #f8fafc;
-            }
-
-            #customersTable td:before {
-                content: attr(data-label);
-                position: absolute;
-                left: 1rem;
-                font-weight: 700;
-                color: #64748b;
-                text-transform: uppercase;
-                font-size: 0.7rem;
-                letter-spacing: 0.025em;
-            }
-
-            #customersTable td.text-center {
-                text-align: center;
-                border-top: 1px solid #f1f5f9 !important;
-                margin-top: 0.5rem;
-                padding-top: 1rem;
-                display: flex;
-                justify-content: center;
-                gap: 4px;
-            }
-
-            .dark #customersTable td.text-center {
-                border-top-color: #334155 !important;
-            }
-        }
-
-        .action-btn {
-            padding: 0.6rem;
-            border-radius: 0.75rem;
-            transition: all 0.2s;
-            border: 1px solid transparent;
-        }
-
-        .action-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        }
-    </style>
-
     <div class="p-6">
-        <div class="mb-6 flex justify-end">
-            <button @click="openModal('bulk-whatsapp')" class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-lg shadow-green-500/30 transition-all">
-                <i data-lucide="message-circle" class="w-4 h-4"></i>
-                <span class="text-sm font-medium">Send Bulk WhatsApp Message</span>
-            </button>
+        <!-- Search, Limit, Sort Controls -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div class="relative w-full md:w-80">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </span>
+                <input type="text" x-model.debounce.300ms="searchQuery" placeholder="Search customers..." class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm text-slate-900 dark:text-white">
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-500 font-semibold">Show</span>
+                    <select x-model="perPage" @change="offset = 0; loadCustomers()" class="py-1.5 px-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-xs font-semibold text-slate-700 dark:text-white">
+                        <option value="15">15</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-500 font-semibold">Sort</span>
+                    <select x-model="orderBy" @change="offset = 0; loadCustomers()" class="py-1.5 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-xs font-semibold text-slate-700 dark:text-white">
+                        <option value="name">Name</option>
+                        <option value="email">Email</option>
+                        <option value="joining_date">Joining Date</option>
+                    </select>
+                </div>
+                <button @click="orderDir = (orderDir==='ASC'?'DESC':'ASC'); loadCustomers()" class="p-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 text-slate-600 dark:text-white" title="Toggle Order direction">
+                    <i x-show="orderDir === 'ASC'" data-lucide="arrow-up-narrow-wide" class="w-4 h-4"></i>
+                    <i x-show="orderDir === 'DESC'" data-lucide="arrow-down-wide-narrow" class="w-4 h-4"></i>
+                </button>
+            </div>
         </div>
-        <div class="overflow-x-auto">
-            <table id="customersTable" class="w-full text-sm text-left text-slate-500 dark:text-slate-400">
-                <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-900 dark:text-slate-400">
-                    <tr>
-                        <th class="px-6 py-4">Name</th>
-                        <th class="px-6 py-4">Email</th>
-                        <th class="px-6 py-4">Phone</th>
-                        <th class="px-6 py-4">Joining Date</th>
-                        <th class="px-6 py-4 text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-                    <!-- DataTables will populate this -->
-                </tbody>
-            </table>
+
+        <!-- Loading state -->
+        <div x-show="isLoading" class="flex items-center justify-center p-12">
+            <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-primary-500"></i>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5" x-show="!isLoading" x-cloak>
+            <template x-for="customer in customers" :key="customer.id">
+                <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-100 dark:border-slate-700/50 shadow-sm relative group hover:-translate-y-1 hover:shadow-xl hover:border-primary-100 dark:hover:border-primary-900 transition-all duration-300 flex flex-col justify-between">
+                    <div>
+                        <!-- Avatar & Name Header -->
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center font-bold text-white text-lg shadow-lg shadow-primary-500/20 flex-shrink-0" x-text="customer.name.substring(0, 1).toUpperCase()">
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="font-extrabold text-sm text-slate-800 dark:text-white truncate" x-text="customer.name"></h4>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 dark:bg-green-900/10 text-green-600 dark:text-green-400 mt-1">
+                                    <span class="w-1 h-1 rounded-full bg-green-500 mr-1"></span> Active
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Details Section -->
+                        <div class="mt-5 space-y-2">
+                            <div class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                                <i data-lucide="mail" class="w-3.5 h-3.5 text-primary-500"></i>
+                                <span class="truncate font-medium" x-text="customer.email || 'No email registered'"></span>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                                <i data-lucide="phone" class="w-3.5 h-3.5 text-green-500"></i>
+                                <span class="font-semibold tracking-wide" x-text="customer.phone"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Meta & Actions Slider -->
+                    <div class="mt-5">
+                        <div class="flex items-center justify-between text-[10px] text-slate-400 mb-3 px-1">
+                            <div class="flex items-center gap-1">
+                                <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                                <span x-text="customer.joining_date"></span>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-100 dark:border-slate-700/40 flex items-center justify-between">
+                            <button @click="sendWA(customer.id, customer.name)" class="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl text-xs font-semibold scale-95 hover:scale-100 transition-all">
+                                <i data-lucide="message-square" class="w-3.5 h-3.5"></i> Message
+                            </button>
+                            <div class="flex items-center gap-1">
+                                <button @click="editCustomer(customer)" class="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-800/20 rounded-lg hover:scale-110 transition-all" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                                <button @click="deleteCustomer(customer.id)" class="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-800/20 rounded-lg hover:scale-110 transition-all" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Pagination Footer -->
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 dark:border-slate-700/50 pt-4" x-show="totalRecords > 0">
+            <p class="text-xs text-slate-500">Showing <span class="font-bold text-slate-700 dark:text-slate-300" x-text="offset + 1"></span> to <span class="font-bold text-slate-700 dark:text-slate-300" x-text="Math.min(offset + parseInt(perPage), totalRecords)"></span> of <span class="font-bold text-slate-700 dark:text-slate-300" x-text="totalRecords"></span> customers</p>
+            <div class="flex items-center gap-2">
+                <button @click="if(offset > 0) { offset -= parseInt(perPage); loadCustomers() }" :disabled="offset === 0" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50">Previous</button>
+                <div class="flex items-center gap-1">
+                    <span class="text-xs text-slate-500">Page</span>
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300" x-text="Math.floor(offset / perPage) + 1"></span>
+                    <span class="text-xs text-slate-500">of</span>
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300" x-text="totalPages"></span>
+                </div>
+                <button @click="if(offset + parseInt(perPage) < totalRecords) { offset += parseInt(perPage); loadCustomers() }" :disabled="offset + parseInt(perPage) >= totalRecords" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50">Next</button>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div x-show="totalRecords === 0 && !isLoading" class="text-center p-12" x-cloak>
+            <i data-lucide="users" class="w-12 h-12 text-slate-300 mx-auto mb-4"></i>
+            <h4 class="font-bold text-slate-700 dark:text-white">No customers found</h4>
+            <p class="text-xs text-slate-500">Try adjusting your search criteria</p>
         </div>
     </div>
 </div>
@@ -408,75 +466,10 @@
 </div>
 
 <script>
-    let table;
-    $(document).ready(function() {
-        table = $('#customersTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: '<?= base_url('customers/list') ?>',
-                type: 'POST'
-            },
-            columns: [{
-                    data: 'name',
-                    className: 'px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap'
-                },
-                {
-                    data: 'email',
-                    className: 'px-6 py-4'
-                },
-                {
-                    data: 'phone',
-                    className: 'px-6 py-4'
-                },
-                {
-                    data: 'joining_date',
-                    className: 'px-6 py-4'
-                },
-                {
-                    data: null,
-                    orderable: false,
-                    className: 'px-6 py-4 text-center flex justify-center gap-2',
-                    render: function(data, type, row) {
-                        return `
-                            <button onclick="sendWA(${row.id}, '${row.name}')" class="action-btn text-green-600 hover:bg-green-50 dark:hover:bg-green-900/10" title="WhatsApp">
-                                <i data-lucide="message-square" class="w-4 h-4"></i>
-                            </button>
-                            <button onclick="editCustomer(${JSON.stringify(row).replace(/"/g, '&quot;')})" class="action-btn text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10" title="Edit">
-                                <i data-lucide="edit-3" class="w-4 h-4"></i>
-                            </button>
-                            <button onclick="deleteCustomer(${row.id})" class="action-btn text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10" title="Delete">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        `;
-                    }
-                }
-            ],
-            createdRow: function(row, data, dataIndex) {
-                const labels = ['Name', 'Email', 'Phone', 'Joining Date', 'Actions'];
-                $(row).find('td').each(function(index) {
-                    $(this).attr('data-label', labels[index]);
-                });
-            },
-            drawCallback: function() {
-                lucide.createIcons();
-            },
-            language: {
-                search: "",
-                searchPlaceholder: "Search customers...",
-                lengthMenu: "_MENU_",
-                paginate: {
-                    previous: "<",
-                    next: ">"
-                }
-            },
-            responsive: false
-        });
-
-        // Add proper styling to DataTable search input
-        $('.dataTables_filter input').addClass('bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 outline-none mb-4');
-        $('.dataTables_length select').addClass('bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 outline-none ml-2 mr-2');
-    });
+    function globalReload() {
+        const root = document.querySelector('[x-data]');
+        if (root && root._x_dataStack) root._x_dataStack[0].loadCustomers();
+    }
 
     function sendWA(id, name) {
         window.dispatchEvent(new CustomEvent('open-whatsapp', {
@@ -545,7 +538,7 @@
         $.post('<?= base_url('customers/save') ?>', formData, function(res) {
             if (res.status === 'success') {
                 closeModal('customerModal');
-                table.ajax.reload();
+                globalReload();
                 Swal.fire('Success', res.message, 'success');
             } else {
                 Swal.fire('Error', res.message, 'error');
@@ -566,7 +559,7 @@
                 if (res.status === 'success') {
                     if (res.status === 'success') {
                         closeModal('importModal');
-                        table.ajax.reload();
+                        globalReload();
                         Swal.fire('Success', res.message, 'success');
                     }
                 } else {
@@ -589,7 +582,7 @@
                 $.post('<?= base_url('customers/delete') ?>', {
                     id: id
                 }, function(res) {
-                    table.ajax.reload();
+                    globalReload();
                     Swal.fire('Deleted!', res.message, 'success');
                 });
             }
