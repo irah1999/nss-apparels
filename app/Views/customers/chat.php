@@ -129,7 +129,7 @@
      }">
 
     <!-- Top Bar -->
-    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
                 <i data-lucide="message-circle" class="w-5 h-5 text-green-600 dark:text-green-400"></i>
@@ -139,7 +139,7 @@
                 <p class="text-xs text-slate-400">WhatsApp 24-hour conversations</p>
             </div>
         </div>
-        <a href="<?= base_url('customers') ?>" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg text-sm font-medium transition-colors">
+        <a href="<?= base_url('customers') ?>" class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg text-sm font-medium transition-colors w-fit">
             <i data-lucide="users" class="w-4 h-4"></i>
             Customers
         </a>
@@ -148,7 +148,7 @@
     <div class="flex flex-1 overflow-hidden">
         <!-- Sidebar: Customer List -->
         <div class="w-full sm:w-80 md:w-96 border-r border-slate-200 dark:border-slate-700 flex flex-col bg-slate-50 dark:bg-slate-800/50"
-            :class="selectedCustomer ? 'hidden sm:flex' : 'flex'">
+            :class="selectedCustomer ? 'hidden md:flex' : 'flex'">
             <!-- Search -->
             <div class="p-4 border-b border-slate-200 dark:border-slate-700">
                 <div class="relative">
@@ -199,7 +199,7 @@
                     <!-- Chat Header -->
                     <div class="px-6 py-3 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <button @click="selectedCustomer = null" class="sm:hidden p-2 -ml-2 text-slate-500 hover:text-slate-900 dark:hover:text-white">
+                            <button @click="selectedCustomer = null" class="md:hidden p-2 -ml-2 text-slate-500 hover:text-slate-900 dark:hover:text-white">
                                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
                             </button>
                             <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold" x-text="selectedCustomer.name.substring(0, 1).toUpperCase()"></div>
