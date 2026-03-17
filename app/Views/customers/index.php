@@ -156,7 +156,7 @@
                             </button>
                             <div class="flex items-center gap-1">
                                 <button @click="editCustomer(customer)" class="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-800/20 rounded-lg hover:scale-110 transition-all" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-                                <button @click="deleteCustomer(customer.id)" class="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-800/20 rounded-lg hover:scale-110 transition-all" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                <!-- <button @click="deleteCustomer(customer.id)" class="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-800/20 rounded-lg hover:scale-110 transition-all" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button> -->
                             </div>
                         </div>
                     </div>

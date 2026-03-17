@@ -5,10 +5,16 @@ use CodeIgniter\Router\RouteCollection;
 /**
  * @var RouteCollection $routes
  */
-$routes->get('/', 'Home::index');
+// $routes->get('/', 'Home::index');
+$routes->get('/', 'Auth::index'); // Redirect home directly to login
 $routes->get('login', 'Auth::index');
 $routes->post('login', 'Auth::login');
 $routes->get('logout', 'Auth::logout');
+
+$routes->get('api/categories', 'Api::categories');
+$routes->get('api/categories_paginated', 'Api::categories_paginated');
+$routes->get('api/products', 'Api::products');
+$routes->get('api/product/(:num)', 'Api::product/$1');
 
 $routes->get('contact', 'Contact::index');
 $routes->post('contact/submit', 'Contact::submit');
@@ -59,7 +65,9 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
 
             $routes->get('products', 'Catalog::products');
             $routes->get('products/(:num)', 'Catalog::products/$1');
+            $routes->post('products_list', 'Catalog::products_list');
             $routes->post('save_product', 'Catalog::save_product');
+            $routes->post('delete_product', 'Catalog::delete_product');
         });
 
         $routes->get('catalog-json', 'Catalog::get_catalog');

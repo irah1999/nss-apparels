@@ -92,16 +92,46 @@ class Catalog extends BaseController
     // Admin List view for Products in Category
     public function products($category_id = null): string
     {
-        if ($category_id) {
-            $data['products'] = $this->productModel->where('category_id', $category_id)->findAll();
-            $data['category'] = $this->categoryModel->find($category_id);
-        } else {
-            $data['products'] = $this->productModel->findAll();
-            $data['category'] = null;
-        }
-        $data['categories'] = $this->categoryModel->findAll();
+        $data['category'] = $category_id ? $this->categoryModel->find($category_id) : null;
+        $data['category_id'] = $category_id;
+        $data['categories'] = $this->categoryModel->where('status', 'active')->findAll();
 
         return view('catalog/products', $data);
+    }
+
+    // Ajax Products List API
+    public function products_list()
+    {
+        $category_id = $this->request->getPost('category_id');
+        $search = $this->request->getPost('search');
+        $limit = $this->request->getPost('limit') ?: 10;
+        $offset = $this->request->getPost('offset') ?: 0;
+        $orderBy = $this->request->getPost('orderBy') ?: 'id';
+        $orderDir = $this->request->getPost('orderDir') ?: 'DESC';
+
+        $builder = $this->productModel;
+        
+        if ($category_id) {
+            $builder = $builder->where('category_id', $category_id);
+        }
+
+        if ($search) {
+            $builder = $builder->groupStart()
+                               ->like('name', $search)
+                               ->orLike('description', $search)
+                               ->groupEnd();
+        }
+
+        $totalRecords = $builder->countAllResults(false);
+        $products = $builder->orderBy($orderBy, $orderDir)->findAll($limit, $offset);
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'products' => $products,
+            'totalRecords' => $totalRecords,
+            'limit' => (int)$limit,
+            'offset' => (int)$offset
+        ]);
     }
 
     // Save/Update Product from POST (supports multi-image gallery)
@@ -128,18 +158,32 @@ class Catalog extends BaseController
             }
         }
 
-        // Handle Gallery Images — keep existing ones when editing, append new uploads
+        // Handle Gallery Images — compare from post instead of blindly pulling all, to support deleting individual images on save
         $galleryPaths = [];
         if ($id) {
             $existing = $this->productModel->find($id);
-            if ($existing && !empty($existing['additional_images'])) {
-                $galleryPaths = json_decode($existing['additional_images'], true) ?: [];
+            if ($existing) {
+                $dbImages = json_decode((string)($existing['additional_images'] ?: '[]'), true) ?: [];
+                $postImagesRaw = $this->request->getPost('existing_additional_images');
+                
+                if ($postImagesRaw !== null) {
+                    $postImages = json_decode($postImagesRaw, true) ?: [];
+                    
+                    // Unlink any image that was in DB but not in current Post list
+                    foreach (array_diff($dbImages, $postImages) as $imgToDelete) {
+                        if (!empty($imgToDelete) && file_exists(FCPATH . $imgToDelete)) {
+                            @unlink(FCPATH . $imgToDelete);
+                        }
+                    }
+                    $galleryPaths = $postImages;
+                } else {
+                    $galleryPaths = $dbImages; // Guard Added: Keep if post was empty
+                }
             }
         }
 
-        $galleryFiles = $this->request->getFiles();
-        if (!empty($galleryFiles['gallery_images'])) {
-            foreach ($galleryFiles['gallery_images'] as $file) {
+        if ($imageFiles = $this->request->getFileMultiple('gallery_images')) {
+            foreach ($imageFiles as $file) {
                 if ($file->isValid() && !$file->hasMoved()) {
                     $newName = $file->getRandomName();
                     $file->move(FCPATH . 'uploads', $newName);
@@ -158,6 +202,36 @@ class Catalog extends BaseController
         }
 
         return $this->response->setJSON(['status' => 'success', 'message' => $msg]);
+    }
+
+    public function delete_product()
+    {
+        $id = $this->request->getPost('id');
+        if ($id) {
+            $product = $this->productModel->find($id);
+            if ($product) {
+                // Delete Main Image
+                if (!empty($product['main_image']) && file_exists(FCPATH . $product['main_image'])) {
+                    @unlink(FCPATH . $product['main_image']);
+                }
+
+                // Delete Gallery Images
+                if (!empty($product['additional_images'])) {
+                    $images = json_decode((string)$product['additional_images'], true);
+                    if (is_array($images)) {
+                        foreach ($images as $img) {
+                            if (!empty($img) && file_exists(FCPATH . $img)) {
+                                @unlink(FCPATH . $img);
+                            }
+                        }
+                    }
+                }
+
+                $this->productModel->delete($id);
+                return $this->response->setJSON(['status' => 'success', 'message' => 'Product and related images deleted successfully']);
+            }
+        }
+        return $this->response->setJSON(['status' => 'error', 'message' => 'Invalid Request']);
     }
 
     // API endpoints to consume list via Front Page or dynamic Ajax
