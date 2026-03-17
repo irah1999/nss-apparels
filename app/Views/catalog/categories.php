@@ -145,7 +145,7 @@
                         <div class="mt-3 pt-3 border-t border-slate-50 dark:border-slate-700/30 flex items-center justify-center gap-1">
                             <button @click="openModal(cat)" class="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
                             <a :href="'<?= base_url('catalog/products/') ?>' + cat.id" class="p-1.5 rounded-lg text-slate-500 hover:bg-slate-50" title="View Items"><i data-lucide="eye" class="w-4 h-4"></i></a>
-                            <button @click="deleteCategory(cat.id)" class="p-1.5 rounded-lg text-red-500 hover:bg-red-50" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            <!-- <button @click="deleteCategory(cat.id)" class="p-1.5 rounded-lg text-red-500 hover:bg-red-50" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button> -->
                         </div>
                     </div>
                 </div>
