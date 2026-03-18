@@ -58,6 +58,21 @@
             <p class="text-xs text-slate-500 dark:text-slate-400">Manage your business connections</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+            <div class="relative" x-data="{ open: false }">
+                <button @click="open = !open" class="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/10 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl transition-all border border-emerald-100 dark:border-emerald-800" title="Export">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span class="text-sm font-medium">Export</span>
+                    <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                </button>
+                <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-36 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden" x-cloak>
+                    <button @click="open = false; startExport('xlsx')" class="flex items-center gap-2 w-full px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-700">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i> XLSX
+                    </button>
+                    <button @click="open = false; startExport('csv')" class="flex items-center gap-2 w-full px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-white">
+                        <i data-lucide="file-text" class="w-4 h-4 text-blue-600"></i> CSV
+                    </button>
+                </div>
+            </div>
             <button @click="openModal('bulk-whatsapp')" class="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 rounded-xl transition-all border border-green-100 dark:border-green-800" title="Bulk WhatsApp">
                 <i data-lucide="message-square" class="w-4 h-4"></i>
                 <span class="text-sm font-medium hidden sm:inline">Bulk WhatsApp</span>
@@ -65,6 +80,9 @@
             <button @click="openModal('import')" class="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-xl transition-all" title="Bulk Import">
                 <i data-lucide="upload-cloud" class="w-4 h-4"></i>
                 <span class="text-sm font-medium hidden sm:inline">Bulk Import</span>
+            </button>
+            <button @click="openModal('importHistoryModal'); loadImportHistory()" class="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-500 dark:text-white rounded-xl transition-all" title="Import Logs">
+                <i data-lucide="file-clock" class="w-4 h-4"></i>
             </button>
             <button @click="openModal('add')" class="flex items-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-lg shadow-primary-500/30 transition-all" title="Add Customer">
                 <i data-lucide="plus" class="w-4 h-4"></i>
@@ -155,8 +173,9 @@
                                 <i data-lucide="message-square" class="w-3.5 h-3.5"></i> Message
                             </button>
                             <div class="flex items-center gap-1">
+                                <button @click="viewHistory(customer)" class="p-1.5 text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-800/20 rounded-lg hover:scale-110 transition-all" title="View History"><i data-lucide="history" class="w-4 h-4"></i></button>
                                 <button @click="editCustomer(customer)" class="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-800/20 rounded-lg hover:scale-110 transition-all" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-                                <!-- <button @click="deleteCustomer(customer.id)" class="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-800/20 rounded-lg hover:scale-110 transition-all" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button> -->
+                                <button @click="deleteCustomer(customer.id)" class="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-800/20 rounded-lg hover:scale-110 transition-all" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                             </div>
                         </div>
                     </div>
@@ -240,7 +259,8 @@
 <div id="importModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 overflow-hidden">
         <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Bulk Import Customers</h3>
-        <p class="text-sm text-slate-500 mb-6">Upload a CSV file with columns: Name, Email, Phone, Joining Date.</p>
+        <p class="text-sm text-slate-500 mb-2">Upload a CSV file with columns: Name, Email, Phone, Joining Date.</p>
+        <a href="<?= base_url('customers/download-sample') ?>" class="text-xs text-primary-600 font-bold hover:underline flex items-center gap-1 mb-4"><i data-lucide="download-cloud" class="w-3.5 h-3.5"></i> Download Sample CSV</a>
         <form id="importForm" class="space-y-6">
             <div class="flex items-center justify-center w-full">
                 <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900 hover:bg-slate-100 dark:border-slate-600 dark:hover:border-slate-500">
@@ -258,6 +278,49 @@
                 <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg">Start Import</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Import History Modal -->
+<div id="importHistoryModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[80vh]">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Bulk Import History</h3>
+            <div class="flex items-center gap-2">
+                <button onclick="loadImportHistory()" class="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-800/20 rounded-lg" title="Refresh"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                <button onclick="closeModal('importHistoryModal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+        </div>
+        <div class="p-6 overflow-y-auto custom-scrollbar flex-1">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase">
+                            <th class="py-3 px-2">File</th>
+                            <th class="py-3 px-2">Total</th>
+                            <th class="py-3 px-2 text-green-600">Inserted</th>
+                            <th class="py-3 px-2 text-red-600">Failed</th>
+                            <th class="py-3 px-2">Status</th>
+                            <th class="py-3 px-2 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="importHistoryContent" class="text-sm divide-y divide-slate-100 dark:divide-slate-800">
+                        <!-- Loaded via AJAX -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div id="historyModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[80vh]">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Message History: <span id="historyCustomerName" class="text-primary-500"></span></h3>
+            <button onclick="closeModal('historyModal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+        <div id="historyContent" class="p-6 overflow-y-auto space-y-3 custom-scrollbar flex-1"></div>
     </div>
 </div>
 
@@ -488,6 +551,8 @@
             $('#customerModal').removeClass('hidden');
         } else if (type === 'import') {
             if ($('#importModal').length) $('#importModal').removeClass('hidden');
+        } else if (type === 'importHistoryModal') {
+            if ($('#importHistoryModal').length) $('#importHistoryModal').removeClass('hidden');
         } else if (type === 'bulk-whatsapp') {
             window.dispatchEvent(new CustomEvent('open-bulk-whatsapp'));
         }
@@ -546,9 +611,16 @@
         });
     });
 
+    $(document).ready(function() {
+        // Optioned lists
+    });
+
     $('#importForm').on('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(this);
+        const submitBtn = $(this).find('button[type="submit"]');
+        submitBtn.prop('disabled', true).text('Uploading...');
+
         $.ajax({
             url: '<?= base_url('customers/import') ?>',
             type: 'POST',
@@ -556,18 +628,52 @@
             processData: false,
             contentType: false,
             success: function(res) {
+                submitBtn.prop('disabled', false).text('Start Import');
                 if (res.status === 'success') {
-                    if (res.status === 'success') {
-                        closeModal('importModal');
-                        globalReload();
-                        Swal.fire('Success', res.message, 'success');
-                    }
+                    closeModal('importModal');
+                    Swal.fire('Queued', res.message, 'success');
                 } else {
                     Swal.fire('Error', res.message, 'error');
                 }
+            },
+            error: function() {
+                submitBtn.prop('disabled', false).text('Start Import');
+                Swal.fire('Error', 'Upload failed', 'error');
             }
         });
     });
+
+    function loadImportHistory() {
+        $('#importHistoryContent').html('<tr><td colspan="6" class="text-center p-4"><i data-lucide="loader-2" class="w-6 h-6 animate-spin text-primary-500 mx-auto"></i></td></tr>');
+        
+        $.get('<?= base_url('customers/get-imports') ?>', function(res) {
+            let html = '';
+            if (res.data.length === 0) {
+                html = '<tr><td colspan="6" class="text-center p-4 text-slate-400">No import history found.</td></tr>';
+            } else {
+                res.data.forEach(row => {
+                    let statusClass = 'bg-slate-100 text-slate-700';
+                    if (row.status === 'completed') statusClass = 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400';
+                    if (row.status === 'processing') statusClass = 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 animate-pulse';
+                    if (row.status === 'failed') statusClass = 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400';
+
+                    html += `
+                    <tr>
+                        <td class="py-3 px-2 font-medium text-slate-800 dark:text-slate-200 max-w-[150px] truncate" title="${row.file_name}">${row.file_name}</td>
+                        <td class="py-3 px-2 text-slate-600 dark:text-slate-400">${row.total_count}</td>
+                        <td class="py-3 px-2 font-bold text-green-600">${row.inserted_count}</td>
+                        <td class="py-3 px-2 font-bold text-red-600">${row.failed_count}</td>
+                        <td class="py-3 px-2"><span class="text-xs px-2 py-0.5 rounded-full font-bold ${statusClass}">${row.status}</span></td>
+                        <td class="py-3 px-2 text-right">
+                            <a href="<?= base_url('customers/download-import') ?>/${row.id}" class="inline-block p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg" title="Download File"><i data-lucide="arrow-down-circle" class="w-4 h-4"></i></a>
+                        </td>
+                    </tr>`;
+                });
+            }
+            $('#importHistoryContent').html(html);
+            if (window.lucide) lucide.createIcons();
+        });
+    }
 
     function deleteCustomer(id) {
         Swal.fire({
@@ -587,6 +693,89 @@
                 });
             }
         });
+    }
+
+    function viewHistory(customer) {
+        $('#historyCustomerName').text(customer.name);
+        $('#historyContent').html('<div class="text-center p-4"><i data-lucide="loader-2" class="w-6 h-6 animate-spin text-primary-500 mx-auto"></i></div>');
+        $('#historyModal').removeClass('hidden');
+        if (window.lucide) lucide.createIcons();
+
+        $.get('<?= base_url('customers/history') ?>/' + customer.id, function(res) {
+            let html = '';
+            if (res.length === 0) {
+                html = '<p class="text-sm text-center text-slate-400">No message history found.</p>';
+            } else {
+                res.forEach(log => {
+                    let statusColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+                    if (log.status === 'read') statusColor = 'bg-cyan-100 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400';
+                    else if (log.status === 'delivered') statusColor = 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400';
+                    else if (log.status === 'sent') statusColor = 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400';
+                    else if (log.status === 'failed') statusColor = 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400';
+                    html += `
+                    <div class="p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold ${log.direction === 'outbound' ? 'text-blue-500' : 'text-slate-500'} uppercase">${log.direction}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded ${statusColor} font-bold">${log.status}</span>
+                        </div>
+                        <p class="text-sm text-slate-800 dark:text-slate-300 whitespace-pre-wrap">${log.message}</p>
+                        <span class="text-[10px] text-slate-400">${new Date(log.sent_at).toLocaleString()}</span>
+                    </div>`;
+                });
+            }
+            $('#historyContent').html(html);
+        });
+    }
+
+    function startExport(type) {
+        const id = 'exp_' + Math.random().toString(36).substring(2, 11);
+        $('#exportProgressBar').css('width', '0%');
+        $('#exportProgressBadge').text('0%');
+        $('#exportModal').removeClass('hidden');
+
+        let interval = setInterval(() => {
+            $.get('<?= base_url('customers/export-progress') ?>/' + id, function(res) {
+                if (res.status === 'success') {
+                    $('#exportProgressBar').css('width', res.percent + '%');
+                    $('#exportProgressBadge').text(res.percent + '%');
+                }
+            });
+        }, 800);
+
+        const fd = new FormData();
+        fd.append('type', type);
+        fd.append('id', id);
+
+        fetch('<?= base_url('customers/export') ?>', { method: 'POST', body: fd })
+            .then(res => {
+                if (!res.ok) throw new Error('Export failed');
+                return res.blob();
+            })
+            .then(blob => {
+                clearInterval(interval);
+                $('#exportModal').addClass('hidden');
+                
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `customers_${new Date().toISOString().slice(0,10)}.${type}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Export Successful',
+                    text: 'File downloaded successfully',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            })
+            .catch(err => {
+                clearInterval(interval);
+                $('#exportModal').addClass('hidden');
+                Swal.fire('Error', 'Export failed. Please try again.', 'error');
+            });
     }
 </script>
 <?= $this->endSection() ?>

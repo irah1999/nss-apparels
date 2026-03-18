@@ -73,10 +73,14 @@ class Customers extends BaseController
         ];
 
         if ($id) {
-            $customerModel->update($id, $data);
+            if ($customerModel->update($id, $data) === false) {
+                return $this->response->setJSON(['status' => 'error', 'message' => implode(', ', $customerModel->errors())]);
+            }
             $msg = 'Customer updated successfully';
         } else {
-            $customerModel->insert($data);
+            if ($customerModel->insert($data) === false) {
+                return $this->response->setJSON(['status' => 'error', 'message' => implode(', ', $customerModel->errors())]);
+            }
             $msg = 'Customer added successfully';
         }
 
@@ -94,32 +98,74 @@ class Customers extends BaseController
     public function import()
     {
         $file = $this->request->getFile('csv_file');
+        
         if ($file && $file->isValid() && !$file->hasMoved()) {
             if ($file->getExtension() !== 'csv') {
                 return $this->response->setJSON(['status' => 'error', 'message' => 'Please upload a valid CSV file']);
             }
 
-            $customerModel = new \App\Models\CustomerModel();
-            $handle = fopen($file->getTempName(), 'r');
-            $header = fgetcsv($handle); // Skip header
-
-            $count = 0;
-            while (($row = fgetcsv($handle)) !== FALSE) {
-                $data = [
-                    'name'         => $row[0] ?? '',
-                    'email'        => $row[1] ?? '',
-                    'phone'        => $row[2] ?? '',
-                    'joining_date' => $row[3] ?? date('Y-m-d'),
-                ];
-                $customerModel->insert($data);
-                $count++;
+            $uuid = 'imp_' . time() . '_' . rand(1000, 9999);
+            $dir = WRITEPATH . 'uploads/imports/';
+            if (!is_dir($dir)) {
+                mkdir($dir, 0777, true);
             }
-            fclose($handle);
 
-            return $this->response->setJSON(['status' => 'success', 'message' => "$count customers imported successfully"]);
+            // Move file to imports folder
+            $file->move($dir, $uuid . '.csv');
+
+            // Log entry into database
+            $bulkModel = new \App\Models\BulkImportModel();
+            $bulkModel->insert([
+                'file_name'      => $file->getClientName(),
+                'filepath'       => $uuid . '.csv',
+                'total_count'    => 0,
+                'inserted_count' => 0,
+                'failed_count'   => 0,
+                'status'         => 'processing'
+            ]);
+
+            // Set initial state for cache fallback
+            cache()->save('import_' . $uuid, ['total' => 0, 'current' => 0, 'done' => false], 1200);
+
+            // Trigger background shell command
+            $cmd = '"' . PHP_BINARY . '" "' . ROOTPATH . 'spark" import:customers ' . $uuid;
+            
+            $logFile = WRITEPATH . 'import_debug.log';
+            file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] Controller triggering command for: $uuid\n", FILE_APPEND);
+            
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                exec('start /B "" ' . $cmd);
+            } else {
+                exec($cmd . " > /dev/null 2>&1 &");
+            }
+
+            return $this->response->setJSON([
+                'status' => 'success', 
+                'import_id' => $uuid, 
+                'message' => 'Import queued. You can review progress inside the History Logs Dashboard shortly.'
+            ]);
         }
 
         return $this->response->setJSON(['status' => 'error', 'message' => 'File upload failed']);
+    }
+
+    public function getImports()
+    {
+        $bulkModel = new \App\Models\BulkImportModel();
+        $imports = $bulkModel->orderBy('created_at', 'DESC')->limit(10)->findAll();
+        return $this->response->setJSON(['status' => 'success', 'data' => $imports]);
+    }
+
+    public function downloadImportFile($id)
+    {
+        $bulkModel = new \App\Models\BulkImportModel();
+        $row = $bulkModel->find($id);
+        if (!$row) exit('File not found');
+
+        $filepath = WRITEPATH . 'uploads/imports/' . $row['filepath'];
+        if (!file_exists($filepath)) exit('File does not exist on server.');
+
+        return $this->response->download($filepath, null)->setFileName((string)$row['file_name']);
     }
 
     public function chat()
@@ -423,5 +469,126 @@ class Customers extends BaseController
         }
 
         return $this->response->setJSON(['status' => 'success', 'message' => "Bulk message processed for $count customers"]);
+    }
+
+    public function downloadSample()
+    {
+        $filename = 'customers_sample.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        $output = fopen('php://output', 'w');
+        fputcsv($output, ['Name', 'Email', 'Phone', 'Joining Date']);
+        fputcsv($output, ['John Doe', 'john@example.com', '919876543210', '2025-01-01']);
+        fclose($output);
+        exit;
+    }
+
+    public function export()
+    {
+        $type = $this->request->getPost('type') ?? 'csv';
+        $id = $this->request->getPost('id') ?? 'export_' . time();
+        
+        $customerModel = new \App\Models\CustomerModel();
+        $total = $customerModel->countAllResults();
+        
+        cache()->save('export_' . $id, ['total' => $total, 'current' => 0, 'done' => false], 600);
+        
+        if ($type === 'xlsx') {
+            return $this->exportXlsx($customerModel, $id, $total);
+        } else {
+            return $this->exportCsv($customerModel, $id, $total);
+        }
+    }
+
+    public function getExportProgress($id)
+    {
+        $data = cache('export_' . $id);
+        if (!$data) return $this->response->setJSON(['status' => 'success', 'percent' => 0]);
+        
+        $percent = $data['total'] > 0 ? ($data['current'] / $data['total']) * 100 : 0;
+        return $this->response->setJSON([
+            'status' => 'success',
+            'percent' => round($percent),
+            'current' => $data['current'],
+            'total' => $data['total']
+        ]);
+    }
+
+    private function exportCsv($model, $id, $total)
+    {
+        $filename = 'customers_' . date('Ymd_His') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        $output = fopen('php://output', 'w');
+        fputcsv($output, ['ID', 'Name', 'Email', 'Phone', 'Joining Date']);
+        
+        $current = 0;
+        $model->chunk(500, function ($customer) use ($output, &$current, $id, $total) {
+            fputcsv($output, [
+                $customer['id'],
+                $customer['name'],
+                $customer['email'] ?: '',
+                $customer['phone'],
+                $customer['joining_date']
+            ]);
+            $current++;
+            if ($current % 50 === 0) {
+                cache()->save('export_' . $id, ['total' => $total, 'current' => $current, 'done' => false], 600);
+            }
+        });
+        
+        cache()->save('export_' . $id, ['total' => $total, 'current' => $total, 'done' => true], 600);
+        fclose($output);
+        exit;
+    }
+
+    private function exportXlsx($model, $id, $total)
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Header
+        $sheet->setCellValue('A1', 'ID');
+        $sheet->setCellValue('B1', 'Name');
+        $sheet->setCellValue('C1', 'Email');
+        $sheet->setCellValue('D1', 'Phone');
+        $sheet->setCellValue('E1', 'Joining Date');
+        
+        $rowNumber = 2; // Start from row 2
+        $current = 0;
+        
+        $model->chunk(500, function ($customer) use (&$sheet, &$rowNumber, &$current, $id, $total) {
+            $sheet->setCellValue('A' . $rowNumber, $customer['id']);
+            $sheet->setCellValue('B' . $rowNumber, $customer['name']);
+            $sheet->setCellValue('C' . $rowNumber, $customer['email'] ?: '');
+            
+            // Set cell value as explicit string to fix scientific notation
+            $sheet->setCellValueExplicit(
+                'D' . $rowNumber, 
+                (string) $customer['phone'] . ' ', 
+                \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING
+            );
+            
+            $sheet->setCellValue('E' . $rowNumber, $customer['joining_date']);
+            $rowNumber++;
+            $current++;
+            if ($current % 50 === 0) {
+                cache()->save('export_' . $id, ['total' => $total, 'current' => $current, 'done' => false], 600);
+            }
+        });
+        
+        cache()->save('export_' . $id, ['total' => $total, 'current' => $total, 'done' => true], 600);
+        
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filename = 'customers_' . date('Ymd_His') . '.xlsx';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . urlencode($filename) . '"');
+        header('Cache-Control: max-age=0');
+        
+        $writer->save('php://output');
+        exit;
     }
 }
