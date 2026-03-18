@@ -27,7 +27,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#f3f6f9] font-sans text-slate-900 flex flex-col">
-      
+
       {/* Header */}
       <Header />
 
@@ -52,15 +52,15 @@ export default function Home() {
           }
         `}
       </style>
-      
+
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-[#121b2d] pt-16 sm:pt-24 pb-24 sm:pb-36 px-4 border-b-4 border-[#d4af37]">
-        
+
         {/* Animated Background Pattern */}
-        <div 
+        <div
           className="absolute inset-0 z-0 pointer-events-none opacity-[0.06] invert"
-          style={{ 
-            backgroundImage: "url('/logo.png')", 
+          style={{
+            backgroundImage: "url('/logo.png')",
             backgroundSize: '300px',
             backgroundRepeat: 'repeat',
             animation: 'pattern-move 30s linear infinite'
@@ -72,42 +72,42 @@ export default function Home() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] pointer-events-none"></div>
 
         <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center text-center">
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-4 tracking-wider uppercase drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]" 
-            style={{ 
-                background: 'linear-gradient(to right, #ffffff 20%, #ff8c00 40%, #d4af37 60%, #ffffff 80%)',
-                backgroundSize: '200% auto',
-                color: '#fff',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                animation: 'text-gradient-move 3s linear infinite'
+            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-4 tracking-wider uppercase drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]"
+            style={{
+              background: 'linear-gradient(to right, #ffffff 20%, #ff8c00 40%, #d4af37 60%, #ffffff 80%)',
+              backgroundSize: '200% auto',
+              color: '#fff',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              animation: 'text-gradient-move 3s linear infinite'
             }}
           >
             NSS APPARELS
           </motion.h1>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
             className="text-xl sm:text-3xl font-light mb-8 sm:mb-12 tracking-wide font-serif drop-shadow-md"
-            style={{ 
-                background: 'linear-gradient(to right, #fde047 20%, #f97316 50%, #fde047 80%)',
-                backgroundSize: '200% auto',
-                color: '#fff',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                animation: 'text-gradient-move 4s linear infinite'
+            style={{
+              background: 'linear-gradient(to right, #fde047 20%, #f97316 50%, #fde047 80%)',
+              backgroundSize: '200% auto',
+              color: '#fff',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              animation: 'text-gradient-move 4s linear infinite'
             }}
           >
             Wholesale Dry Fit T-Shirts, Tracks & Shorts
           </motion.p>
-          
-          <motion.div 
+
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.6 }}
@@ -118,9 +118,9 @@ export default function Home() {
               </div>
               <span className="font-bold text-xs sm:text-sm text-white uppercase tracking-widest">NEW ARRIVALS</span>
             </div>
-            
+
             <div className="hidden sm:block w-px h-6 bg-white/20"></div>
-            
+
             <div className="flex items-center gap-2">
               <Star className="w-5 h-5 sm:w-6 sm:h-6 text-[#d4af37] fill-[#d4af37] drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
               <span className="font-bold text-xs sm:text-sm text-white uppercase tracking-widest">BEST SELLING</span>
@@ -138,80 +138,80 @@ export default function Home() {
 
       {/* Explore Products */}
       <section className="relative -mt-10 sm:-mt-16 z-20 px-4 max-w-7xl mx-auto" id="products">
-        <motion.h2 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-center mb-10 sm:mb-12"
-            style={{
-                background: 'linear-gradient(to right, #1a233a 20%, #d4af37 40%, #1a233a 60%, #1a233a 80%)',
-                backgroundSize: '200% auto',
-                color: '#000',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                animation: 'text-shine 3s linear infinite',
-                textShadow: "0 4px 6px rgba(0,0,0,0.1)"
-            }}
+        <motion.h2
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-center mb-10 sm:mb-12"
+          style={{
+            background: 'linear-gradient(to right, #1a233a 20%, #d4af37 40%, #1a233a 60%, #1a233a 80%)',
+            backgroundSize: '200% auto',
+            color: '#000',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            animation: 'text-shine 3s linear infinite',
+            textShadow: "0 4px 6px rgba(0,0,0,0.1)"
+          }}
         >
-            Explore Our Products
+          Explore Our Products
         </motion.h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
           {loading ? (
-             <>
-                {[...Array(3)].map((_, idx) => (
-                  <div key={idx} className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col items-center pt-8 pb-6 px-4 border border-slate-100 animate-pulse">
-                     <div className="h-8 bg-slate-200 rounded-md w-1/2 mb-6"></div>
-                     <div className="w-full h-40 sm:h-48 mb-6 bg-slate-200 rounded-xl"></div>
-                     <hr className="w-full border-slate-200 mb-6" />
-                     <div className="w-full h-12 sm:h-14 bg-slate-200 rounded-md"></div>
-                  </div>
-                ))}
-             </>
+            <>
+              {[...Array(3)].map((_, idx) => (
+                <div key={idx} className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col items-center pt-8 pb-6 px-4 border border-slate-100 animate-pulse">
+                  <div className="h-8 bg-slate-200 rounded-md w-1/2 mb-6"></div>
+                  <div className="w-full h-40 sm:h-48 mb-6 bg-slate-200 rounded-xl"></div>
+                  <hr className="w-full border-slate-200 mb-6" />
+                  <div className="w-full h-12 sm:h-14 bg-slate-200 rounded-md"></div>
+                </div>
+              ))}
+            </>
           ) : categories.length === 0 ? (
-             <div className="col-span-full text-center py-10 font-bold text-slate-500">No categories found.</div>
+            <div className="col-span-full text-center py-10 font-bold text-slate-500">No categories found.</div>
           ) : (
-             categories.map((cat, idx) => {
-               let imgUrl = cat.image;
-               if (!imgUrl && cat.products && cat.products.length > 0 && cat.products[0].main_image) {
-                 imgUrl = cat.products[0].main_image;
-               }
+            categories.map((cat, idx) => {
+              let imgUrl = cat.image;
+              if (!imgUrl && cat.products && cat.products.length > 0 && cat.products[0].main_image) {
+                imgUrl = cat.products[0].main_image;
+              }
 
-               return (
-                 <motion.div 
-                   key={idx} 
-                   initial={{ opacity: 0, y: 30 }}
-                   whileInView={{ opacity: 1, y: 0 }}
-                   viewport={{ once: true, margin: "-50px" }}
-                   transition={{ duration: 0.5, delay: idx * 0.1 }}
-                   className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col items-center pt-8 pb-6 px-4 border border-slate-100 hover:-translate-y-2 hover:shadow-2xl transition-all duration-300"
-                 >
-                   <h3 className="text-2xl font-bold text-[#1a233a] mb-6 capitalize">{cat.name}</h3>
-                   
-                   <div className="w-full h-40 sm:h-48 mb-6 overflow-hidden relative flex items-center justify-center bg-slate-50 rounded-xl group">
-                     {imgUrl ? (
-                        <img src={imgUrl} className="max-h-full max-w-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-500" alt={cat.name} />
-                     ) : (
-                        <ImageIcon className="w-12 h-12 text-slate-300" />
-                     )}
-                   </div>
-                   
-                   <hr className="w-full border-slate-200 mb-6" />
-                   
-                   <Link to={`/products/${cat.id}`} className="w-full bg-[#1a233a] hover:bg-slate-800 text-white font-bold py-3 sm:py-4 rounded-md flex items-center justify-center gap-2 transition-colors text-lg">
-                     VIEW ALL <ChevronRight className="w-5 h-5" />
-                   </Link>
-                 </motion.div>
-               );
-             })
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ duration: 0.5, delay: idx * 0.1 }}
+                  className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col items-center pt-8 pb-6 px-4 border border-slate-100 hover:-translate-y-2 hover:shadow-2xl transition-all duration-300"
+                >
+                  <h3 className="text-2xl font-bold text-[#1a233a] mb-6 capitalize">{cat.name}</h3>
+
+                  <div className="w-full h-40 sm:h-48 mb-6 overflow-hidden relative flex items-center justify-center bg-slate-50 rounded-xl group">
+                    {imgUrl ? (
+                      <img src={imgUrl} className="max-h-full max-w-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-500" alt={cat.name} />
+                    ) : (
+                      <ImageIcon className="w-12 h-12 text-slate-300" />
+                    )}
+                  </div>
+
+                  <hr className="w-full border-slate-200 mb-6" />
+
+                  <Link to={`/products/${cat.id}`} className="w-full bg-[#1a233a] hover:bg-slate-800 text-white font-bold py-3 sm:py-4 rounded-md flex items-center justify-center gap-2 transition-colors text-lg">
+                    VIEW ALL <ChevronRight className="w-5 h-5" />
+                  </Link>
+                </motion.div>
+              );
+            })
           )}
         </div>
-        
+
         <div className="mt-12 text-center">
           <Link to="/products" className="inline-flex items-center gap-2 bg-[#d4af37] hover:bg-[#b09028] text-white font-bold py-4 px-10 rounded-full transition-transform hover:-translate-y-1 shadow-lg shadow-yellow-500/30 text-lg">
-             VIEW ALL PRODUCTS <ChevronRight className="w-6 h-6" />
+            VIEW ALL PRODUCTS <ChevronRight className="w-6 h-6" />
           </Link>
         </div>
       </section>
@@ -231,18 +231,18 @@ export default function Home() {
             <Truck className="w-8 h-8 sm:w-10 sm:h-10 text-[#1a233a]" />
             <span className="text-lg sm:text-xl font-bold text-[#1a233a]">All Tamilnadu Shipping</span>
           </div>
-          
+
           <div className="hidden md:block w-px h-10 bg-slate-300"></div>
-          
+
           <div className="flex items-center gap-3">
             <div className="text-yellow-500">
               <Package className="w-8 h-8 sm:w-10 sm:h-10 fill-yellow-500" />
             </div>
             <span className="text-lg sm:text-xl font-bold text-[#1a233a]">Best Wholesale Price</span>
           </div>
-          
+
           <div className="hidden md:block w-px h-10 bg-slate-300"></div>
-          
+
           <div className="flex items-center gap-3">
             <div className="text-amber-600">
               <Package className="w-8 h-8 sm:w-10 sm:h-10 fill-amber-500 text-amber-600" />
@@ -254,7 +254,7 @@ export default function Home() {
 
       {/* Visit Our Store */}
       <section className="px-4 max-w-7xl mx-auto mb-16" id="contact">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
@@ -262,11 +262,11 @@ export default function Home() {
           className="bg-[#12182b] text-white rounded-[2rem] p-8 md:p-14 shadow-2xl relative overflow-hidden"
         >
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-900/20 rounded-full blur-[80px]"></div>
-          
+
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 relative z-10 items-center">
-             <div>
+            <div>
               <h2 className="text-3xl sm:text-4xl font-serif font-bold mb-8 md:mb-12">Visit Our Store</h2>
-              
+
               <div className="space-y-6 sm:space-y-8">
                 <div className="flex items-start gap-4">
                   <MapPin className="w-6 h-6 text-yellow-500 shrink-0 mt-1" />
@@ -276,25 +276,25 @@ export default function Home() {
                     636016
                   </p>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
                   <Phone className="w-6 h-6 text-yellow-500 shrink-0" />
                   <p className="text-sm sm:text-base text-slate-300 font-light">+91 {import.meta.env.VITE_WHATSAPP_NUMBER?.replace(/^91/, '') || '80987 60720'}</p>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
                   <Mail className="w-6 h-6 text-yellow-500 shrink-0" />
                   <p className="text-sm sm:text-base text-slate-300 font-light">nssapparelstirupur@gmail.com</p>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
                   <FileBadge className="w-6 h-6 text-yellow-500 shrink-0" />
                   <p className="text-sm sm:text-base text-slate-300 uppercase tracking-widest font-light text-xs sm:text-sm">GSTIN : 33CESPJ5443N1Z1</p>
                 </div>
               </div>
             </div>
-            
-             <div className="h-64 sm:h-80 md:h-full rounded-2xl overflow-hidden shadow-inset border border-slate-700/50 relative">
+
+            <div className="h-64 sm:h-80 md:h-full rounded-2xl overflow-hidden shadow-inset border border-slate-700/50 relative">
               <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=800&auto=format&fit=crop" alt="Store Interior" className="w-full h-full object-cover" />
             </div>
           </div>
@@ -303,6 +303,7 @@ export default function Home() {
 
       {/* Footer */}
       <Footer />
+
 
     </div>
   );
