@@ -72,7 +72,7 @@
     </style>
 </head>
 
-<body class="bg-slate-50 dark:bg-slate-900 font-sans transition-colors duration-300" x-data="{ 
+<body class="bg-slate-50 dark:bg-slate-900 font-sans transition-colors duration-300 overflow-x-hidden" x-data="{ 
         darkMode: localStorage.getItem('darkMode') === 'true',
         sidebarOpen: window.innerWidth > 1024,
         toggleDarkMode() {
