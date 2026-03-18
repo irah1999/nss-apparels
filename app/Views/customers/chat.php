@@ -19,6 +19,19 @@
         newCustomerPhone: '',
         newCustomerEmail: '',
         isAddingCustomer: false,
+
+        async init() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const customerId = urlParams.get('customer_id');
+
+            if (customerId) {
+                const res = await fetch('<?= base_url('api/whatsapp/get-customer') ?>/' + customerId);
+                if (res.ok) {
+                    const customer = await res.json();
+                    this.selectCustomer(customer);
+                }
+            }
+        },
         
         async selectCustomer(customer) {
             this.selectedCustomer = customer;
@@ -33,6 +46,9 @@
                 if (container) container.scrollTop = container.scrollHeight;
                 if (window.lucide) lucide.createIcons();
             });
+
+            // Mark as read in background
+            fetch('<?= base_url('api/whatsapp/mark-read') ?>/' + customer.id, { method: 'POST' });
         },
 
         formatPhoneNumber(phone) {
@@ -299,7 +315,7 @@
                                     <div x-show="showEmoji" @click.away="showEmoji = false" x-cloak
                                         class="absolute bottom-12 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700"
                                         style="width: 320px;">
-                                        <emoji-picker id="emojiPicker" class="light"></emoji-picker>
+                                        <emoji-picker id="emojiPicker" class="light" @emoji-click="newMessage += $event.detail.unicode; showEmoji = false;"></emoji-picker>
                                     </div>
                                 </div>
 

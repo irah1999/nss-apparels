@@ -200,7 +200,42 @@
                 </button>
                 <h1 class="text-xl font-semibold dark:text-white hidden sm:block"><?= $title ?? 'Dashboard' ?></h1>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2" x-data="{ 
+                notifications: [],
+                open: false,
+                async loadNotifications() {
+                    const res = await fetch('<?= base_url('api/whatsapp/unread-messages') ?>');
+                    this.notifications = await res.json();
+                },
+                init() {
+                    this.loadNotifications();
+                    setInterval(() => this.loadNotifications(), 10000); // Poll every 10 secs
+                }
+            }">
+                <!-- Notification Bell -->
+                <div class="relative">
+                    <button @click="open = !open" class="p-2 text-slate-500 rounded-lg hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors relative">
+                        <i data-lucide="bell" class="w-5 h-5"></i>
+                        <span x-show="notifications.length > 0" class="absolute top-1 right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold" x-text="notifications.length"></span>
+                    </button>
+                    <!-- Dropdown -->
+                    <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden" x-cloak>
+                        <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-white">New Messages</div>
+                        <div class="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
+                            <template x-for="notif in notifications" :key="notif.id">
+                                <a :href="'<?= base_url('customers/chat?customer_id=') ?>' + notif.customer_id" class="block px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                    <p class="text-xs font-bold text-slate-800 dark:text-slate-200" x-text="notif.customer_name"></p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 truncate" x-text="notif.message"></p>
+                                    <span class="text-[9px] text-slate-400" x-text="new Date(notif.sent_at).toLocaleTimeString()"></span>
+                                </a>
+                            </template>
+                            <template x-if="notifications.length === 0">
+                                <p class="text-xs text-slate-400 p-4 text-center">No new messages.</p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
                 <button @click="toggleDarkMode()" class="p-2 text-slate-500 rounded-lg hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors">
                     <i :data-lucide="darkMode ? 'sun' : 'moon'" class="w-5 h-5"></i>
                 </button>

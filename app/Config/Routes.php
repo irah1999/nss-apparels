@@ -20,6 +20,14 @@ $routes->get('contact', 'Contact::index');
 $routes->post('contact/submit', 'Contact::submit');
 
 
+$routes->group('api/whatsapp', function($routes) {
+    $routes->get('webhook', '\App\Controllers\Api\WhatsappWebhook::verify');
+    $routes->post('webhook', '\App\Controllers\Api\WhatsappWebhook::receive');
+    $routes->get('unread-messages', '\App\Controllers\Api\WhatsappWebhook::getUnreadMessages');
+    $routes->get('get-customer/(:num)', '\App\Controllers\Api\WhatsappWebhook::getCustomer/$1');
+    $routes->post('mark-read/(:num)', '\App\Controllers\Api\WhatsappWebhook::markRead/$1');
+});
+
 $routes->group('', ['filter' => 'auth'], function ($routes) {
     $routes->get('dashboard', 'Dashboard::index');
 
@@ -30,7 +38,12 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->post('list', 'Customers::list'); // For DataTable pipeline
         $routes->post('save', 'Customers::save');
         $routes->post('delete', 'Customers::delete');
+        $routes->post('export', 'Customers::export');
+        $routes->get('export-progress/(:any)', 'Customers::getExportProgress/$1');
+        $routes->get('download-sample', 'Customers::downloadSample');
         $routes->post('import', 'Customers::import');
+        $routes->get('get-imports', 'Customers::getImports');
+        $routes->get('download-import/(:num)', 'Customers::downloadImportFile/$1');
         $routes->post('send-whatsapp', 'Customers::sendWhatsapp');
         $routes->post('bulk-whatsapp', 'Customers::bulkWhatsapp');
         $routes->get('history/(:num)', 'Customers::getChatHistory/$1');
