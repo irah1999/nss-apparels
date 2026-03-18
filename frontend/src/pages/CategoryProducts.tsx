@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronRight, PackageSearch, Image as ImageIcon, Search, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -19,42 +20,55 @@ export default function CategoryProducts() {
   const [search, setSearch] = useState('');
   
   const observer = useRef<IntersectionObserver | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchItems = async (pageNumber: number, isNewSearch = false) => {
     try {
       if (isNewSearch) setLoading(true);
       else setLoadingMore(true);
 
+      // Cancel any previous pending requests if typing too fast triggers.
+      if (abortControllerRef.current) {
+         abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
       const searchParams = new URLSearchParams({
         page: pageNumber.toString(),
         limit: '10'
       });
-      if (search) searchParams.append('search', search);
+      
+      const trimmedSearch = search.trim();
+      if (trimmedSearch) searchParams.append('search', trimmedSearch);
 
       const apiUrl = import.meta.env.VITE_API_BASE_URL || '';
       let url = '';
+      
+      // Standard layout: If id exists, it is product list. If not, it is Category list.
       if (id) {
-          // Fetch products for a specific category
           searchParams.append('category_id', id);
           url = `${apiUrl}/api/products?${searchParams.toString()}`;
       } else {
-          // Fetch paginated categories
           url = `${apiUrl}/api/categories_paginated?${searchParams.toString()}`;
       }
 
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: abortControllerRef.current.signal });
       const data = await res.json();
       
+      const newItems = data && Array.isArray(data.data) ? data.data : [];
+
       if (isNewSearch) {
-        setItems(data.data);
+        setItems(newItems);
       } else {
-        setItems(prev => [...prev, ...data.data]);
+        setItems(prev => [...prev, ...newItems]);
       }
       
       setHasMore(data.has_more);
       setPage(data.page);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+         console.error(err);
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -111,7 +125,12 @@ export default function CategoryProducts() {
       <main className="flex-1 py-8 px-4">
         <div className="container mx-auto max-w-7xl">
           {/* Breadcrumb / Header */}
-          <div className="mb-6 pl-2 border-l-4 border-yellow-500">
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-6 pl-2 border-l-4 border-yellow-500"
+          >
              <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
                  <Link to="/" className="hover:text-amber-600 font-medium">Home</Link>
                  <ChevronRight className="w-4 h-4" />
@@ -120,10 +139,15 @@ export default function CategoryProducts() {
              <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#1a233a]">
                  {id ? (categoryInfo ? categoryInfo.name : 'Products') : 'Explore Categories'}
              </h1>
-          </div>
+          </motion.div>
 
           {/* Search Toolbar */}
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-8 flex flex-col sm:flex-row gap-4 justify-between items-center">
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-8 flex flex-col sm:flex-row gap-4 justify-between items-center"
+          >
              <div className="relative w-full sm:w-96">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                 <input 
@@ -134,7 +158,7 @@ export default function CategoryProducts() {
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-medium"
                 />
              </div>
-          </div>
+          </motion.div>
 
           <div className="flex flex-col gap-8">
             <div className="flex-1">
@@ -159,7 +183,8 @@ export default function CategoryProducts() {
                      {id ? (
                         // Rendering Products
                         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                            {items.map((prod, index) => {
+                            {Array.isArray(items) && items.map((prod, index) => {
+                                if (!prod) return null;
                                 let addl: string[] = [];
                                 try {
                                     if(prod.additional_images) addl = JSON.parse(prod.additional_images);
@@ -174,52 +199,67 @@ export default function CategoryProducts() {
                                 const isLastItem = index === items.length - 1;
 
                                 return (
-                                    <Link 
-                                      to={`/product-detail/${prod.id}`} 
-                                      key={prod.id} 
+                                    <motion.div
+                                      key={prod.id}
+                                      initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                                      whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                                      viewport={{ once: true, margin: "-20px" }}
+                                      transition={{ duration: 0.4, delay: (index % 4) * 0.1 }}
                                       ref={isLastItem ? lastElementRef : null}
-                                      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col justify-between border border-slate-100"
+                                      className="h-full"
                                     >
-                                        <div>
-                                            <div className="aspect-[3/4] bg-slate-50 flex items-center justify-center overflow-hidden relative">
-                                                {prod.main_image ? (
-                                                    <>
-                                                        <img src={prod.main_image} className="absolute inset-0 w-full h-full object-contain p-2 transition-opacity duration-500 group-hover:opacity-0 group-hover:scale-105" style={{ zIndex: 2 }} alt={prod.name} />
-                                                        <img src={hoverImg} className="relative w-full h-full object-contain p-2 transition-transform duration-700 group-hover:scale-110" style={{ zIndex: 1 }} alt={prod.name} />
-                                                    </>
-                                                ) : (
-                                                    <ImageIcon className="w-10 h-10 text-slate-300" />
-                                                )}
+                                        <Link 
+                                          to={`/product-detail/${prod.id}`} 
+                                          className="h-full bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between border border-slate-100"
+                                        >
+                                            <div>
+                                                <div className="aspect-[3/4] bg-slate-50 flex items-center justify-center overflow-hidden relative">
+                                                    {prod.main_image ? (
+                                                        <>
+                                                            <img 
+                                                              src={prod.main_image} 
+                                                              onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
+                                                              className="absolute inset-0 w-full h-full object-contain p-2 opacity-0 transition-opacity duration-500 group-hover:opacity-0 group-hover:scale-105" style={{ zIndex: 2 }} alt={prod.name} />
+                                                            <img 
+                                                              src={hoverImg} 
+                                                              onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
+                                                              className="absolute inset-0 w-full h-full object-contain p-2 opacity-0 transition-opacity duration-500 group-hover:opacity-100 group-hover:scale-110" style={{ zIndex: 1 }} alt={prod.name} />
+                                                        </>
+                                                    ) : (
+                                                        <ImageIcon className="w-10 h-10 text-slate-300" />
+                                                    )}
+                                                </div>
+                                                <div className="p-4 border-t border-slate-100 bg-white relative z-10">
+                                                    <h4 className="font-bold text-[15px] sm:text-base text-[#1a233a] truncate group-hover:text-blue-600 transition-colors" title={prod.name}>{prod.name}</h4>
+                                                    <p className="text-[11px] sm:text-xs text-slate-500 truncate mt-1">{prod.description || 'Premium wear'}</p>
+                                                </div>
                                             </div>
-                                            <div className="p-4 border-t border-slate-100 bg-white relative z-10">
-                                                <h4 className="font-bold text-[15px] sm:text-base text-[#1a233a] truncate group-hover:text-blue-600 transition-colors" title={prod.name}>{prod.name}</h4>
-                                                <p className="text-[11px] sm:text-xs text-slate-500 truncate mt-1">{prod.description || 'Premium wear'}</p>
-                                            </div>
-                                        </div>
 
-                                        <div className="px-4 pb-4">
-                                            {colors && colors.length > 0 && (
-                                                <div className="flex items-center gap-1.5 mt-2 mb-3">
-                                                    {colors.slice(0, 4).map((c, i) => (
-                                                        <span key={i} className="w-3.5 h-3.5 rounded-full border border-slate-200 shadow-sm" style={{ backgroundColor: c }}></span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                                                <span className="text-[#1a233a] font-bold text-xs uppercase">View Details</span>
-                                                <div className="p-1.5 bg-yellow-100 text-yellow-600 rounded-lg group-hover:scale-110 group-hover:bg-yellow-400 group-hover:text-white transition-all">
-                                                    <ChevronRight className="w-4 h-4" />
+                                            <div className="px-4 pb-4">
+                                                {colors && colors.length > 0 && (
+                                                    <div className="flex items-center gap-1.5 mt-2 mb-3">
+                                                        {colors.slice(0, 4).map((c, i) => (
+                                                            <span key={i} className="w-3.5 h-3.5 rounded-full border border-slate-200 shadow-sm" style={{ backgroundColor: c }}></span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                                                    <span className="text-[#1a233a] font-bold text-xs uppercase">View Details</span>
+                                                    <div className="p-1.5 bg-yellow-100 text-yellow-600 rounded-lg group-hover:scale-110 group-hover:bg-yellow-400 group-hover:text-white transition-all">
+                                                        <ChevronRight className="w-4 h-4" />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </Link>
+                                        </Link>
+                                    </motion.div>
                                 );
                             })}
                         </div>
                      ) : (
                         // Rendering Categories
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-                            {items.map((cat, index) => {
+                            {Array.isArray(items) && items.map((cat, index) => {
+                                if (!cat) return null;
                                 let imgUrl = cat.image;
                                 if (!imgUrl && cat.products && cat.products.length > 0 && cat.products[0].main_image) {
                                   imgUrl = cat.products[0].main_image;
@@ -228,12 +268,20 @@ export default function CategoryProducts() {
                                 const isLastItem = index === items.length - 1;
 
                                 return (
-                                  <div key={cat.id} ref={isLastItem ? lastElementRef : null} className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col items-center pt-8 pb-6 px-4 border border-slate-100 hover:-translate-y-1 transition-transform">
+                                  <motion.div 
+                                    key={cat.id} 
+                                    ref={isLastItem ? lastElementRef : null} 
+                                    initial={{ opacity: 0, y: 30 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, margin: "-20px" }}
+                                    transition={{ duration: 0.5, delay: (index % 3) * 0.1 }}
+                                    className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col items-center pt-8 pb-6 px-4 border border-slate-100 hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 group"
+                                  >
                                     <h3 className="text-2xl font-bold text-[#1a233a] mb-6 capitalize">{cat.name}</h3>
                                     
-                                    <div className="w-full h-40 sm:h-48 mb-6 overflow-hidden relative flex items-center justify-center bg-slate-50 rounded">
+                                    <div className="w-full h-40 sm:h-48 mb-6 overflow-hidden relative flex items-center justify-center bg-slate-50 rounded-xl">
                                       {imgUrl ? (
-                                         <img src={imgUrl} className="max-h-full max-w-full object-contain drop-shadow-md" alt={cat.name} />
+                                         <img src={imgUrl} className="max-h-full max-w-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-500" alt={cat.name} />
                                       ) : (
                                          <ImageIcon className="w-12 h-12 text-slate-300" />
                                       )}
@@ -244,7 +292,7 @@ export default function CategoryProducts() {
                                     <Link to={`/products/${cat.id}`} className="w-full bg-[#1a233a] hover:bg-slate-800 text-white font-bold py-3 sm:py-4 rounded-md flex items-center justify-center gap-2 mb-3 transition-colors text-lg">
                                       VIEW {cat.name} <ChevronRight className="w-5 h-5" />
                                     </Link>
-                                  </div>
+                                  </motion.div>
                                 );
                             })}
                         </div>

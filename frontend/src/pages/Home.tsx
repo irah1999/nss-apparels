@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Truck, MapPin, Phone, Mail, FileBadge, ChevronRight, MessageCircle, Star, Package, Image as ImageIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -71,7 +72,10 @@ export default function Home() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] pointer-events-none"></div>
 
         <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center text-center">
-          <h1 
+          <motion.h1 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
             className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-4 tracking-wider uppercase drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]" 
             style={{ 
                 background: 'linear-gradient(to right, #ffffff 20%, #ff8c00 40%, #d4af37 60%, #ffffff 80%)',
@@ -84,8 +88,11 @@ export default function Home() {
             }}
           >
             NSS APPARELS
-          </h1>
-          <p 
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
             className="text-xl sm:text-3xl font-light mb-8 sm:mb-12 tracking-wide font-serif drop-shadow-md"
             style={{ 
                 background: 'linear-gradient(to right, #fde047 20%, #f97316 50%, #fde047 80%)',
@@ -98,9 +105,13 @@ export default function Home() {
             }}
           >
             Wholesale Dry Fit T-Shirts, Tracks & Shorts
-          </p>
+          </motion.p>
           
-          <div className="bg-white/10 backdrop-blur-md shadow-2xl rounded-full px-5 sm:px-8 py-4 sm:py-5 flex flex-wrap justify-center items-center gap-4 sm:gap-8 border border-white/20">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="bg-white/10 backdrop-blur-md shadow-2xl rounded-full px-5 sm:px-8 py-4 sm:py-5 flex flex-wrap justify-center items-center gap-4 sm:gap-8 border border-white/20">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-[#d4af37] rounded-sm flex items-center justify-center transform rotate-45 shadow-[0_0_10px_rgba(212,175,55,0.5)]">
                 <div className="w-2 h-2 bg-white rounded-full"></div>
@@ -121,13 +132,17 @@ export default function Home() {
               <Package className="w-5 h-5 sm:w-6 sm:h-6 text-[#d4af37] drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
               <span className="font-bold text-xs sm:text-sm text-white uppercase tracking-widest">BULK OFFERS</span>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Explore Products */}
       <section className="relative -mt-10 sm:-mt-16 z-20 px-4 max-w-7xl mx-auto" id="products">
-        <h2 
+        <motion.h2 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
             className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-center mb-10 sm:mb-12"
             style={{
                 background: 'linear-gradient(to right, #1a233a 20%, #d4af37 40%, #1a233a 60%, #1a233a 80%)',
@@ -141,7 +156,7 @@ export default function Home() {
             }}
         >
             Explore Our Products
-        </h2>
+        </motion.h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
           {loading ? (
@@ -159,19 +174,25 @@ export default function Home() {
              <div className="col-span-full text-center py-10 font-bold text-slate-500">No categories found.</div>
           ) : (
              categories.map((cat, idx) => {
-               // Get image
                let imgUrl = cat.image;
                if (!imgUrl && cat.products && cat.products.length > 0 && cat.products[0].main_image) {
                  imgUrl = cat.products[0].main_image;
                }
 
                return (
-                 <div key={idx} className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col items-center pt-8 pb-6 px-4 border border-slate-100 hover:-translate-y-1 transition-transform">
+                 <motion.div 
+                   key={idx} 
+                   initial={{ opacity: 0, y: 30 }}
+                   whileInView={{ opacity: 1, y: 0 }}
+                   viewport={{ once: true, margin: "-50px" }}
+                   transition={{ duration: 0.5, delay: idx * 0.1 }}
+                   className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col items-center pt-8 pb-6 px-4 border border-slate-100 hover:-translate-y-2 hover:shadow-2xl transition-all duration-300"
+                 >
                    <h3 className="text-2xl font-bold text-[#1a233a] mb-6 capitalize">{cat.name}</h3>
                    
-                   <div className="w-full h-40 sm:h-48 mb-6 overflow-hidden relative flex items-center justify-center bg-slate-50 rounded">
+                   <div className="w-full h-40 sm:h-48 mb-6 overflow-hidden relative flex items-center justify-center bg-slate-50 rounded-xl group">
                      {imgUrl ? (
-                        <img src={imgUrl} className="max-h-full max-w-full object-contain drop-shadow-md" alt={cat.name} />
+                        <img src={imgUrl} className="max-h-full max-w-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-500" alt={cat.name} />
                      ) : (
                         <ImageIcon className="w-12 h-12 text-slate-300" />
                      )}
@@ -182,7 +203,7 @@ export default function Home() {
                    <Link to={`/products/${cat.id}`} className="w-full bg-[#1a233a] hover:bg-slate-800 text-white font-bold py-3 sm:py-4 rounded-md flex items-center justify-center gap-2 transition-colors text-lg">
                      VIEW ALL <ChevronRight className="w-5 h-5" />
                    </Link>
-                 </div>
+                 </motion.div>
                );
              })
           )}
@@ -233,7 +254,13 @@ export default function Home() {
 
       {/* Visit Our Store */}
       <section className="px-4 max-w-7xl mx-auto mb-16" id="contact">
-        <div className="bg-[#12182b] text-white rounded-[2rem] p-8 md:p-14 shadow-2xl relative overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="bg-[#12182b] text-white rounded-[2rem] p-8 md:p-14 shadow-2xl relative overflow-hidden"
+        >
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-900/20 rounded-full blur-[80px]"></div>
           
           <div className="grid md:grid-cols-2 gap-10 md:gap-16 relative z-10 items-center">
@@ -271,7 +298,7 @@ export default function Home() {
               <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=800&auto=format&fit=crop" alt="Store Interior" className="w-full h-full object-cover" />
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Footer */}

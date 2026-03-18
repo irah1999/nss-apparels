@@ -108,8 +108,6 @@ class Api extends BaseController
             $builder->groupStart()
                     ->like('name', $search)
                     ->orLike('description', $search)
-                    ->orLike('item_code', $search)
-                    ->orLike('fabric', $search)
                     ->groupEnd();
         }
         

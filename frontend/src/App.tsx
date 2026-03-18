@@ -2,6 +2,8 @@ import { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import PageSkeleton from './components/PageSkeleton';
 
+import ScrollToTop from './components/ScrollToTop';
+
 const Home = lazy(() => import('./pages/Home'));
 const CategoryProducts = lazy(() => import('./pages/CategoryProducts'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
@@ -10,6 +12,7 @@ const Contact = lazy(() => import('./pages/Contact'));
 export default function App() {
   return (
     <Suspense fallback={<PageSkeleton />}>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/products" element={<CategoryProducts />} />

@@ -16,10 +16,6 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': target,
         '/uploads': target,
-        '/products': target,
-        '/product-detail': target,
-        '/contact': target,
-        '/login': target,
       }
     }
   }
