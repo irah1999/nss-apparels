@@ -1,2 +1,0 @@
-# nss-apparels
-NSS Apparels
