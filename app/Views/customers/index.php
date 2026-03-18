@@ -316,11 +316,23 @@
 <!-- History Modal -->
 <div id="historyModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[80vh]">
-        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Message History: <span id="historyCustomerName" class="text-primary-500"></span></h3>
-            <button onclick="closeModal('historyModal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 flex-wrap">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white flex-1">History: <span id="historyCustomerName" class="text-primary-500"></span></h3>
+            <div class="flex items-center gap-2">
+                <input type="date" id="historyDateFilter" onchange="historyDateSearch()" class="py-1 px-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-white outline-none">
+                <button onclick="closeModal('historyModal')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
         </div>
         <div id="historyContent" class="p-6 overflow-y-auto space-y-3 custom-scrollbar flex-1"></div>
+        
+        <!-- Footer Pagination -->
+        <div class="p-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0">
+             <span id="historyPageCount" class="text-xs text-slate-500 font-semibold">Page 1 of 1</span>
+             <div class="flex items-center gap-1.5">
+                 <button id="historyPrev" onclick="historyPrev()" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50" disabled>Previous</button>
+                 <button id="historyNext" onclick="historyNext()" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50" disabled>Next</button>
+             </div>
+        </div>
     </div>
 </div>
 
@@ -695,23 +707,57 @@
         });
     }
 
-    function viewHistory(customer) {
+    let currentHistoryCustomer = null;
+    let historyOffset = 0;
+    let historyLimit = 50;
+
+    function historyDateSearch() {
+        historyOffset = 0;
+        viewHistory(currentHistoryCustomer, false);
+    }
+    
+    function historyPrev() {
+        if (historyOffset > 0) {
+            historyOffset -= historyLimit;
+            viewHistory(currentHistoryCustomer, false);
+        }
+    }
+
+    function historyNext() {
+        historyOffset += historyLimit;
+        viewHistory(currentHistoryCustomer, false);
+    }
+
+    function viewHistory(customer, reset = true) {
+        if (reset) {
+            currentHistoryCustomer = customer;
+            historyOffset = 0;
+            $('#historyDateFilter').val('');
+        }
+        
         $('#historyCustomerName').text(customer.name);
         $('#historyContent').html('<div class="text-center p-4"><i data-lucide="loader-2" class="w-6 h-6 animate-spin text-primary-500 mx-auto"></i></div>');
         $('#historyModal').removeClass('hidden');
         if (window.lucide) lucide.createIcons();
 
-        $.get('<?= base_url('customers/history') ?>/' + customer.id, function(res) {
+        const date = $('#historyDateFilter').val();
+        const url = `<?= base_url('customers/history') ?>/${customer.id}?limit=${historyLimit}&offset=${historyOffset}&date=${date}`;
+
+        $.get(url, function(res) {
             let html = '';
-            if (res.length === 0) {
+            // Since backend now returns { data: [...], totalRecords: X }
+            const logs = res.data || [];
+            
+            if (logs.length === 0) {
                 html = '<p class="text-sm text-center text-slate-400">No message history found.</p>';
             } else {
-                res.forEach(log => {
+                logs.forEach(log => {
                     let statusColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
                     if (log.status === 'read') statusColor = 'bg-cyan-100 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400';
                     else if (log.status === 'delivered') statusColor = 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400';
                     else if (log.status === 'sent') statusColor = 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400';
                     else if (log.status === 'failed') statusColor = 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400';
+                    
                     html += `
                     <div class="p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl space-y-1">
                         <div class="flex items-center justify-between">
@@ -724,6 +770,15 @@
                 });
             }
             $('#historyContent').html(html);
+
+            // Update Pagination display
+            const currentPage = Math.floor(historyOffset / historyLimit) + 1;
+            const totalPages = res.totalPages || 1;
+            $('#historyPageCount').text(`Page ${currentPage} of ${totalPages}`);
+
+            // Updates Buttons
+            $('#historyPrev').prop('disabled', historyOffset === 0);
+            $('#historyNext').prop('disabled', (historyOffset + historyLimit) >= res.totalRecords);
         });
     }
 

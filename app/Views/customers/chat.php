@@ -11,6 +11,9 @@
         attachments: [],
         selectedTemplate: '',
         showEmoji: false,
+        messagesLimit: 50,
+        hasMoreMessages: true,
+        isLoadingMore: false,
         showAddModal: false,
         showBulkModal: false,
         openImportModal: false,
@@ -56,23 +59,71 @@
             return phone.replace(/\D/g, '');
         },
 
-        async loadHistory() {
+        async loadHistory(append = false) {
             if (!this.selectedCustomer) return;
+            if (append && (this.isLoadingMore || !this.hasMoreMessages)) return;
+
             try {
-                const response = await fetch(`<?= base_url('customers/history') ?>/${this.selectedCustomer.id}`);
-                const newMessages = await response.json();
-                // Only scroll to bottom if new messages arrived
-                const hadNewMsg = newMessages.length > this.messages.length;
-                this.messages = newMessages;
-                if (hadNewMsg) {
-                    this.$nextTick(() => {
-                        const container = this.$refs.messageContainer;
-                        if (container) container.scrollTop = container.scrollHeight;
-                        if (window.lucide) lucide.createIcons();
-                    });
+                if (append) this.isLoadingMore = true;
+
+                // If loading more, skip elements already inside our container array!
+                const offset = append ? this.messages.length : 0;
+                
+                // Fetch DESC (Latest first)
+                const response = await fetch(`<?= base_url('customers/history') ?>/${this.selectedCustomer.id}?limit=${this.messagesLimit}&offset=${offset}&order=DESC`);
+                const res = await response.json();
+                
+                const dbMessages = res.data || [];
+                // Reverse DESC records to ASC for Whatsapp layout flow (oldest top, latest bottom)
+                const newMessages = dbMessages.slice().reverse(); 
+
+                if (dbMessages.length < this.messagesLimit) {
+                    this.hasMoreMessages = false; // hit boundary!
+                } else if (!append) {
+                    this.hasMoreMessages = true; // reset for new conversations
                 }
+
+                const container = this.$refs.messageContainer;
+
+                if (append) {
+                    // Prepend older messages at the very top of viewports!
+                    const oldScrollHeight = container ? container.scrollHeight : 0;
+                    const oldScrollTop = container ? container.scrollTop : 0;
+
+                    this.messages = [...newMessages, ...this.messages];
+
+                    this.$nextTick(() => {
+                        if (container) {
+                            // Restore Scroll Position accurately so it doesn't jump down!
+                            container.scrollTop = container.scrollHeight - oldScrollHeight;
+                        }
+                        this.isLoadingMore = false;
+                    });
+                } else {
+                    // Regular polling or initial loads triggers
+                    const hadNewMsg = newMessages.length > this.messages.length;
+
+                    if (this.messages.length > 0 && !append) {
+                         const lastMsgId = this.messages[this.messages.length - 1].id;
+                         const freshOnes = newMessages.filter(m => m.id > lastMsgId);
+                         if (freshOnes.length > 0) {
+                              this.messages = [...this.messages, ...freshOnes];
+                         }
+                    } else {
+                         this.messages = newMessages;
+                    }
+
+                    if (hadNewMsg && container) {
+                         this.$nextTick(() => {
+                             container.scrollTop = container.scrollHeight;
+                         });
+                    }
+                }
+                
+                if (window.lucide) lucide.createIcons();
             } catch (e) {
                 console.error('Failed to load history', e);
+                this.isLoadingMore = false;
             }
         },
 
@@ -204,7 +255,7 @@
         </div>
 
         <!-- Chat Area -->
-        <div class="flex-1 flex flex-col bg-slate-100/30 dark:bg-slate-900/10 relative"
+        <div class="flex-1 flex flex-col bg-slate-100/30 dark:bg-slate-900/10 relative min-w-0"
             x-show="selectedCustomer"
             x-transition:enter="transition-opacity ease-out duration-300"
             x-transition:enter-start="opacity-0"
@@ -235,7 +286,14 @@
                     </div>
 
                     <!-- Messages -->
-                    <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar" x-ref="messageContainer">
+                    <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar" x-ref="messageContainer"
+                        @scroll="if ($el.scrollTop === 0 && hasMoreMessages) loadHistory(true)">
+
+                        <!-- Infinite Scroll Loading Loader -->
+                        <div x-show="isLoadingMore" class="flex justify-center items-center py-2" x-cloak>
+                            <div class="w-5 h-5 border-2 border-slate-300 border-t-primary-500 rounded-full animate-spin"></div>
+                            <span class="text-xs text-slate-400 ml-2">Loading previous messages...</span>
+                         </div>
                         <template x-for="msg in messages" :key="msg.id">
                             <div class="flex" :class="msg.direction === 'outbound' ? 'justify-end' : 'justify-start'">
                                 <div class="max-w-[75%] group relative">
@@ -305,50 +363,57 @@
                             </template>
                         </div>
 
-                        <div class="flex items-end gap-3">
-                            <div class="flex items-center gap-1 shrink-0 mb-1 relative">
-                                <!-- Emoji Picker -->
-                                <div class="relative">
-                                    <button type="button" @click="showEmoji = !showEmoji" class="p-2 text-slate-400 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/10 rounded-full transition-colors" title="Emoji">
-                                        <i data-lucide="smile" class="w-6 h-6"></i>
-                                    </button>
-                                    <div x-show="showEmoji" @click.away="showEmoji = false" x-cloak
-                                        class="absolute bottom-12 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700"
-                                        style="width: 320px;">
-                                        <emoji-picker id="emojiPicker" class="light" @emoji-click="newMessage += $event.detail.unicode; showEmoji = false;"></emoji-picker>
-                                    </div>
+                        <!-- WhatsApp Style Input Bar -->
+                        <div class="flex items-end gap-2 w-full" x-data="{ showAttach: false }">
+                            <!-- Emoji Picker -->
+                            <div class="relative shrink-0 mb-0.5">
+                                <button type="button" @click="showEmoji = !showEmoji" class="p-2 text-slate-400 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/10 rounded-full transition-colors" title="Emoji">
+                                    <i data-lucide="smile" class="w-6 h-6"></i>
+                                </button>
+                                <div x-show="showEmoji" @click.away="showEmoji = false" x-cloak class="absolute bottom-12 left-0 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700" style="width: 320px;">
+                                    <emoji-picker id="emojiPicker" class="light" @emoji-click="newMessage += $event.detail.unicode; showEmoji = false;"></emoji-picker>
                                 </div>
-
-                                <!-- Send Image Button -->
-                                <button @click="$refs.imageInput.click()" class="flex items-center gap-2 p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl transition-all relative border border-slate-200 dark:border-slate-700" :class="attachments.filter(f => f.type.startsWith('image/')).length > 0 ? 'text-primary-600 bg-primary-50 border-primary-500' : ''" title="Send Image">
-                                    <i data-lucide="image" class="w-5 h-5"></i>
-                                    <input type="file" x-ref="imageInput" @change="handleFileSelect" class="hidden" accept="image/*" multiple>
-                                </button>
-
-                                <!-- Send Video Button -->
-                                <button @click="$refs.videoInput.click()" class="flex items-center gap-2 p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl transition-all relative border border-slate-200 dark:border-slate-700" :class="attachments.filter(f => f.type.startsWith('video/')).length > 0 ? 'text-primary-600 bg-primary-50 border-primary-500' : ''" title="Send Video">
-                                    <i data-lucide="video" class="w-5 h-5"></i>
-                                    <input type="file" x-ref="videoInput" @change="handleFileSelect" class="hidden" accept="video/mp4,video/3gpp" multiple>
-                                </button>
-
-                                <!-- Send File Button -->
-                                <button @click="$refs.fileInput.click()" class="flex items-center gap-2 p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-xl transition-all relative border border-slate-200 dark:border-slate-700" :class="attachments.filter(f => !f.type.startsWith('image/') && !f.type.startsWith('video/')).length > 0 ? 'text-primary-600 bg-primary-50 border-primary-500' : ''" title="Send Document">
-                                    <i data-lucide="paperclip" class="w-5 h-5"></i>
-                                    <input type="file" x-ref="fileInput" @change="handleFileSelect" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" multiple>
-                                </button>
                             </div>
-                            <div class="flex-1 relative">
+
+                            <!-- Text Area Container -->
+                            <div class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center px-3 relative min-w-0">
                                 <textarea x-model="newMessage"
                                     @keydown.enter.prevent="if(!isSending) sendMessage()"
                                     rows="1"
                                     placeholder="Type a message..."
-                                    class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 focus:ring-2 focus:ring-primary-500 outline-none transition-all dark:text-white resize-none max-h-32 overflow-y-auto custom-scrollbar"></textarea>
+                                    class="w-full bg-transparent border-none py-3 pr-8 focus:ring-0 outline-none transition-all dark:text-white resize-none max-h-32 overflow-y-auto custom-scrollbar text-sm"></textarea>
+
+                                <!-- Floating Attachments (Paperclip) -->
+                                <div class="absolute right-2 bottom-2">
+                                    <button @click="showAttach = !showAttach" type="button" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-full transition-colors">
+                                        <i data-lucide="paperclip" class="w-5 h-5"></i>
+                                    </button>
+                                    <div x-show="showAttach" @click.away="showAttach = false" x-cloak class="absolute bottom-12 right-0 bg-white dark:bg-slate-800 rounded-2xl shadow-xl flex gap-3 p-3 border border-slate-200 dark:border-slate-700 z-50" style="width: max-content;">
+                                        <!-- Send Image Button -->
+                                        <button @click="$refs.imageInput.click(); showAttach=false" class="flex items-center gap-1.5 p-2 text-slate-500 hover:text-primary-600 rounded-lg text-xs font-semibold" title="Send Image">
+                                            <i data-lucide="image" class="w-4 h-4"></i> Image
+                                            <input type="file" x-ref="imageInput" @change="handleFileSelect" class="hidden" accept="image/*" multiple>
+                                        </button>
+                                        <!-- Send Video Button -->
+                                        <button @click="$refs.videoInput.click(); showAttach=false" class="flex items-center gap-1.5 p-2 text-slate-500 hover:text-primary-600 rounded-lg text-xs font-semibold" title="Send Video">
+                                            <i data-lucide="video" class="w-4 h-4"></i> Video
+                                            <input type="file" x-ref="videoInput" @change="handleFileSelect" class="hidden" accept="video/mp4,video/3gpp" multiple>
+                                        </button>
+                                        <!-- Send File Button -->
+                                        <button @click="$refs.fileInput.click(); showAttach=false" class="flex items-center gap-1.5 p-2 text-slate-500 hover:text-primary-600 rounded-lg text-xs font-semibold" title="Send Document">
+                                            <i data-lucide="file-text" class="w-4 h-4"></i> Doc
+                                            <input type="file" x-ref="fileInput" @change="handleFileSelect" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" multiple>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
+
+                            <!-- Send Button -->
                             <button @click="sendMessage()"
                                 :disabled="isSending || (!newMessage && attachments.length === 0)"
-                                class="p-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl transition-all shadow-md active:scale-95 shrink-0 mb-0.5">
-                                <i x-show="!isSending" data-lucide="send" class="w-6 h-6"></i>
-                                <i x-show="isSending" data-lucide="loader-2" class="w-6 h-6 animate-spin"></i>
+                                class="p-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-full transition-all shadow-md active:scale-95 shrink-0 mb-0.5 w-11 h-11 flex items-center justify-center">
+                                <i x-show="!isSending" data-lucide="send" class="w-5 h-5"></i>
+                                <i x-show="isSending" data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
                             </button>
                         </div>
                     </div>

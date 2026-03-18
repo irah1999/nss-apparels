@@ -187,11 +187,32 @@ class Customers extends BaseController
     public function getChatHistory($customerId)
     {
         $logModel = new \App\Models\WhatsappLogModel();
-        $history = $logModel->where('customer_id', $customerId)
-            ->orderBy('sent_at', 'ASC')
-            ->findAll();
+        
+        $limit = (int) $this->request->getGet('limit') ?: 50;
+        $offset = (int) $this->request->getGet('offset') ?: 0;
+        $date = $this->request->getGet('date'); 
+        $order = $this->request->getGet('order') ?: 'DESC';
 
-        return $this->response->setJSON($history);
+        $builder = $logModel->where('customer_id', $customerId);
+
+        if (!empty($date)) {
+            $builder->where('DATE(sent_at)', $date);
+        }
+
+        $totalRecords = $builder->countAllResults(false); 
+
+        // Apply order configuration (ASC or DESC)
+        $history = $builder->orderBy('sent_at', $order)
+                           ->limit($limit, $offset)
+                           ->findAll();
+
+        return $this->response->setJSON([
+            'data' => $history,
+            'totalRecords' => $totalRecords,
+            'limit' => $limit,
+            'offset' => $offset,
+            'totalPages' => ceil($totalRecords / $limit)
+        ]);
     }
 
     public function sendChat()
