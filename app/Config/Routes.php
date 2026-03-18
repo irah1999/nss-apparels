@@ -28,6 +28,10 @@ $routes->group('api/whatsapp', function($routes) {
     $routes->post('mark-read/(:num)', '\App\Controllers\Api\WhatsappWebhook::markRead/$1');
 });
 
+// Fallback for direct production layouts 
+$routes->get('webhook', '\App\Controllers\Api\WhatsappWebhook::verify');
+$routes->post('webhook', '\App\Controllers\Api\WhatsappWebhook::receive');
+
 $routes->group('', ['filter' => 'auth'], function ($routes) {
     $routes->get('dashboard', 'Dashboard::index');
 
