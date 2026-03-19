@@ -30,7 +30,7 @@ class CustomerModel extends Model
     // Validation
     protected $validationRules      = [
         'name'  => 'required',
-        'phone' => 'required|is_unique[customers.phone,id,{id}]'
+        'phone' => 'required'
     ];
     protected $validationMessages   = [];
     protected $skipValidation       = false;
