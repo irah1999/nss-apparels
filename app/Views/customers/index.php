@@ -257,27 +257,119 @@
 
 <!-- Import Modal -->
 <div id="importModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 overflow-hidden">
-        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Bulk Import Customers</h3>
-        <p class="text-sm text-slate-500 mb-2">Upload a CSV file with columns: Name, Email, Phone, Joining Date.</p>
-        <a href="<?= base_url('customers/download-sample') ?>" class="text-xs text-primary-600 font-bold hover:underline flex items-center gap-1 mb-4"><i data-lucide="download-cloud" class="w-3.5 h-3.5"></i> Download Sample CSV</a>
-        <form id="importForm" class="space-y-6">
-            <div class="flex items-center justify-center w-full">
-                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900 hover:bg-slate-100 dark:border-slate-600 dark:hover:border-slate-500">
-                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                        <i data-lucide="cloud-upload" class="w-8 h-8 text-slate-400 mb-2"></i>
-                        <p class="mb-2 text-sm text-slate-500 dark:text-slate-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">CSV files only (MAX. 2MB)</p>
-                    </div>
-                    <input type="file" name="csv_file" class="hidden" accept=".csv" required id="csvInput" onchange="document.getElementById('fileName').innerText = this.files[0].name" />
-                </label>
+    <div 
+        id="previewComponent"
+        x-data="{ 
+            previewData: [],
+            offset: 0,
+            limit: 10,
+            isSaving: false,
+            get totalPages() { return Math.ceil(this.previewData.length / this.limit); },
+            get paginatedData() { return this.previewData.slice(this.offset, this.offset + this.limit); },
+
+            nextPage() { if ((this.offset + this.limit) < this.previewData.length) this.offset += this.limit; },
+            prevPage() { if (this.offset >= this.limit) this.offset -= this.limit; },
+
+            submitPreview() {
+                this.isSaving = true;
+                $.post('<?= base_url('customers/process-preview-upload') ?>', { data: JSON.stringify(this.previewData) }, (res) => {
+                    this.isSaving = false;
+                    if (res.status === 'success') {
+                        closeModal('importModal');
+                        this.previewData = [];
+                        this.offset = 0;
+                        Swal.fire('Done', res.message, 'success');
+                        globalReload();
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                });
+            }
+        }"
+        :class="previewData.length > 0 ? 'max-w-5xl' : 'max-w-md'"
+        class="bg-white dark:bg-slate-800 w-full rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 overflow-hidden transition-all duration-300">
+        
+        <!-- Step 1: Upload File -->
+        <div x-show="previewData.length === 0">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Bulk Import Customers</h3>
+            <p class="text-sm text-slate-500 mb-2">Upload a CSV file with columns: Name, Email, Phone, Joining Date.</p>
+            <a href="<?= base_url('customers/download-sample') ?>" class="text-xs text-primary-600 font-bold hover:underline flex items-center gap-1 mb-4"><i data-lucide="download-cloud" class="w-3.5 h-3.5"></i> Download Sample CSV</a>
+            <form id="importForm" class="space-y-6">
+                <div class="flex items-center justify-center w-full">
+                    <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900 hover:bg-slate-100 dark:border-slate-600 dark:hover:border-slate-500">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <i data-lucide="upload-cloud" class="w-8 h-8 text-slate-400 mb-2"></i>
+                            <p class="mb-2 text-sm text-slate-500 dark:text-slate-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">CSV files only (MAX. 2MB)</p>
+                        </div>
+                        <input type="file" name="csv_file" class="hidden" accept=".csv" required id="csvInput" onchange="document.getElementById('fileName').innerText = this.files[0].name" />
+                    </label>
+                </div>
+                <p id="fileName" class="text-sm text-primary-600 font-medium text-center"></p>
+                <div class="flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeModal('importModal')" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 font-medium">Cancel</button>
+                    <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg">Preview Data</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Step 2: Preview & Bulk Edit -->
+        <div x-show="previewData.length > 0" class="space-y-4" x-cloak>
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">Preview & Verify Contacts</h3>
+                <span class="text-xs text-slate-400 font-medium">Total Rows: <b x-text="previewData.length" class="text-slate-800 dark:text-slate-200"></b></span>
             </div>
-            <p id="fileName" class="text-sm text-primary-600 font-medium text-center"></p>
-            <div class="flex items-center justify-end gap-3">
-                <button type="button" onclick="closeModal('importModal')" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 font-medium">Cancel</button>
-                <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg">Start Import</button>
+
+            <div class="overflow-x-auto max-h-[50vh] custom-scrollbar border border-slate-100 dark:border-slate-700 rounded-xl">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-bold text-slate-400 uppercase">
+                            <th class="py-2 px-3 border-b border-slate-100 dark:border-slate-800">#</th>
+                            <th class="py-2 px-3 border-b border-slate-100 dark:border-slate-800">Name</th>
+                            <th class="py-2 px-3 border-b border-slate-100 dark:border-slate-800">Email</th>
+                            <th class="py-2 px-3 border-b border-slate-100 dark:border-slate-800">Phone</th>
+                            <th class="py-2 px-3 border-b border-slate-100 dark:border-slate-800">Joining Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-xs divide-y divide-slate-100 dark:divide-slate-800">
+                        <template x-for="(row, index) in paginatedData" :key="offset + index">
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <td class="py-2 px-3 font-semibold text-slate-400" x-text="offset + index + 1"></td>
+                                <td class="py-1 px-2">
+                                    <input type="text" x-model="previewData[offset + index].name" class="w-full px-1.5 py-1 bg-transparent border-0 focus:ring-1 focus:ring-primary-500 rounded outline-none" :class="previewData[offset + index].errors.name ? 'border border-red-500 bg-red-50 dark:bg-red-900/10' : ''">
+                                    <p x-show="previewData[offset + index].errors.name" class="text-[9px] text-red-500 mt-0.5" x-text="previewData[offset + index].errors.name"></p>
+                                </td>
+                                <td class="py-1 px-2">
+                                    <input type="email" x-model="previewData[offset + index].email" class="w-full px-1.5 py-1 bg-transparent border-0 focus:ring-1 focus:ring-primary-500 rounded outline-none">
+                                </td>
+                                <td class="py-1 px-2">
+                                    <input type="text" x-model="previewData[offset + index].phone" class="w-full px-1.5 py-1 bg-transparent border-0 focus:ring-1 focus:ring-primary-500 rounded outline-none" :class="previewData[offset + index].errors.phone ? 'border border-red-500 bg-red-50 dark:bg-red-900/10' : ''">
+                                    <p x-show="previewData[offset + index].errors.phone" class="text-[9px] text-red-500 mt-0.5" x-text="previewData[offset + index].errors.phone"></p>
+                                </td>
+                                <td class="py-1 px-2">
+                                    <input type="date" x-model="previewData[offset + index].joining_date" class="w-full px-1.5 py-1 bg-transparent border-0 focus:ring-1 focus:ring-primary-500 rounded outline-none">
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
             </div>
-        </form>
+
+            <div class="flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-3">
+                <div class="flex items-center gap-1.5">
+                    <button @click="prevPage()" :disabled="offset === 0" class="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold hover:bg-slate-50 disabled:opacity-50">Prev</button>
+                    <span class="text-[11px] text-slate-500"><b x-text="Math.floor(offset / limit) + 1"></b> of <b x-text="totalPages"></b></span>
+                    <button @click="nextPage()" :disabled="(offset + limit) >= previewData.length" class="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold hover:bg-slate-50 disabled:opacity-50">Next</button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="button" @click="previewData = []; offset = 0" class="px-4 py-1.5 text-xs text-slate-600 dark:text-slate-400 font-bold">Clear / Restart</button>
+                    <button type="button" @click="submitPreview()" :disabled="isSaving" class="px-6 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-green-500/30 transition-all flex items-center gap-1.5 disabled:opacity-50">
+                        <i x-show="isSaving" data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>
+                        <span x-text="isSaving ? 'Saving...' : 'Finish & Upload All'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -631,25 +723,40 @@
         e.preventDefault();
         const formData = new FormData(this);
         const submitBtn = $(this).find('button[type="submit"]');
-        submitBtn.prop('disabled', true).text('Uploading...');
+        submitBtn.prop('disabled', true).text('Reading file...');
 
         $.ajax({
-            url: '<?= base_url('customers/import') ?>',
+            url: '<?= base_url('customers/preview-import') ?>',
             type: 'POST',
             data: formData,
             processData: false,
             contentType: false,
             success: function(res) {
-                submitBtn.prop('disabled', false).text('Start Import');
+                submitBtn.prop('disabled', false).text('Preview Data');
                 if (res.status === 'success') {
-                    closeModal('importModal');
-                    Swal.fire('Queued', res.message, 'success');
+                    // Update Alpine state in previewComponent
+                    const previewNode = document.getElementById('previewComponent');
+                    let alpineObj = null;
+                    try {
+                        if (window.Alpine && Alpine.$data) {
+                            alpineObj = Alpine.$data(previewNode);
+                        } else if (previewNode.__x) {
+                            alpineObj = previewNode.__x.$data;
+                        }
+                    } catch(e) {}
+
+                    if (alpineObj) {
+                        alpineObj.previewData = res.data;
+                        alpineObj.offset = 0;
+                    } else {
+                        Swal.fire('Tip', 'Data loaded, close and reopen modal if rendering hangs.', 'info');
+                    }
                 } else {
                     Swal.fire('Error', res.message, 'error');
                 }
             },
             error: function() {
-                submitBtn.prop('disabled', false).text('Start Import');
+                submitBtn.prop('disabled', false).text('Preview Data');
                 Swal.fire('Error', 'Upload failed', 'error');
             }
         });
@@ -676,14 +783,43 @@
                         <td class="py-3 px-2 font-bold text-green-600">${row.inserted_count}</td>
                         <td class="py-3 px-2 font-bold text-red-600">${row.failed_count}</td>
                         <td class="py-3 px-2"><span class="text-xs px-2 py-0.5 rounded-full font-bold ${statusClass}">${row.status}</span></td>
-                        <td class="py-3 px-2 text-right">
-                            <a href="<?= base_url('customers/download-import') ?>/${row.id}" class="inline-block p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg" title="Download File"><i data-lucide="arrow-down-circle" class="w-4 h-4"></i></a>
+                        <td class="py-3 px-2 flex items-center justify-end gap-1">
+                            ${row.file_exists ? `<a href="<?= base_url('customers/download-import') ?>/${row.id}" class="inline-block p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg" title="Download Original File"><i data-lucide="arrow-down-circle" class="w-4 h-4"></i></a>` : `<span class="inline-block p-1 text-slate-300 cursor-not-allowed" title="Past record without backup file"><i data-lucide="arrow-down-circle" class="w-4 h-4"></i></span>`}
+                            
+                            ${parseInt(row.failed_count) > 0 ? `<a href="<?= base_url('customers/download-failed-import') ?>/${row.id}" class="inline-block p-1 text-red-500 hover:bg-red-100 dark:hover:bg-slate-700 rounded-lg" title="Download Failed Rows List"><i data-lucide="file-warning" class="w-4 h-4"></i></a>` : ''}
+
+                            <button onclick="retryImport(${row.id})" class="p-1 text-blue-500 hover:bg-blue-100 dark:hover:bg-slate-700 rounded-lg" title="Retry / Restart Import"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+                            <button onclick="deleteImport(${row.id})" class="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-slate-700 rounded-lg" title="Delete Log row"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </td>
                     </tr>`;
                 });
             }
             $('#importHistoryContent').html(html);
             if (window.lucide) lucide.createIcons();
+        });
+    }
+
+    function retryImport(id) {
+        $.post('<?= base_url('customers/retry-import') ?>', { id: id }, function(res) {
+            Swal.fire('Queued', res.message, 'success');
+            loadImportHistory();
+        });
+    }
+
+    function deleteImport(id) {
+        Swal.fire({
+            title: 'Delete this record?',
+            text: "This removes the history entry which you uploaded.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('<?= base_url('customers/delete-import') ?>', { id: id }, function(res) {
+                    Swal.fire('Deleted!', res.message, 'success');
+                    loadImportHistory();
+                });
+            }
         });
     }
 

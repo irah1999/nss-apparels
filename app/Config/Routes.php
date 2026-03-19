@@ -48,6 +48,11 @@ $routes->group('', ['filter' => 'auth'], function ($routes) {
         $routes->post('import', 'Customers::import');
         $routes->get('get-imports', 'Customers::getImports');
         $routes->get('download-import/(:num)', 'Customers::downloadImportFile/$1');
+        $routes->post('delete-import', 'Customers::deleteImport');
+        $routes->post('retry-import', 'Customers::retryImport');
+        $routes->get('download-failed-import/(:num)', 'Customers::downloadFailedImport/$1');
+        $routes->post('preview-import', 'Customers::previewImport');
+        $routes->post('process-preview-upload', 'Customers::processPreviewUpload');
         $routes->post('send-whatsapp', 'Customers::sendWhatsapp');
         $routes->post('bulk-whatsapp', 'Customers::bulkWhatsapp');
         $routes->get('history/(:num)', 'Customers::getChatHistory/$1');

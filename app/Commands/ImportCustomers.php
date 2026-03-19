@@ -31,83 +31,120 @@ class ImportCustomers extends BaseCommand
         $filepath = WRITEPATH . 'uploads/imports/' . $uuid . '.csv';
         file_put_contents($logFile, "Filepath: $filepath\n", FILE_APPEND);
 
-        if (!file_exists($filepath)) {
-            file_put_contents($logFile, "Error: File not found\n", FILE_APPEND);
-            CLI::error('File not found: ' . $filepath);
-            return;
-        }
-
         $customerModel = new \App\Models\CustomerModel();
         $bulkModel = new \App\Models\BulkImportModel();
         
         $importRow = $bulkModel->where('filepath', $uuid . '.csv')->first();
-        
-        $handle = fopen($filepath, 'r');
-        fgetcsv($handle); // Skip header
 
-        // Count total rows
-        $total = 0;
-        while (fgetcsv($handle) !== FALSE) { $total++; }
-        rewind($handle);
-        fgetcsv($handle); // Skip header again
-
-        // Update database row if found
-        if ($importRow) {
-            $bulkModel->update($importRow['id'], ['total_count' => $total, 'status' => 'processing']);
+        if (!file_exists($filepath)) {
+            file_put_contents($logFile, "Error: File not found\n", FILE_APPEND);
+            CLI::error('File not found: ' . $filepath);
+            if ($importRow) {
+                $bulkModel->update($importRow['id'], ['status' => 'failed']);
+            }
+            return;
         }
-        
-        cache()->save('import_' . $uuid, ['total' => $total, 'current' => 0, 'done' => false], 1200);
 
-        $inserted = 0;
-        $failed = 0;
-        $current = 0;
+        if (!$importRow) {
+            file_put_contents($logFile, "Error: Import record not found in database\n", FILE_APPEND);
+            CLI::error('Import record not found');
+            return;
+        }
 
-        while (($row = fgetcsv($handle)) !== FALSE) {
-            $name = isset($row[0]) ? trim($row[0]) : '';
-            $phone = isset($row[2]) ? trim($row[2]) : '';
-            $current++;
+        try {
+            $handle = fopen($filepath, 'r');
+            if (!$handle) throw new \Exception("Cannot open file: " . $filepath);
 
-            if (empty($name) || empty($phone)) {
-                $failed++;
-                continue; // Skip row
-            }
-            
-            $data = [
-                'name'         => $name,
-                'email'        => isset($row[1]) ? trim($row[1]) : '',
-                'phone'        => $phone,
-                'joining_date' => !empty($row[3]) ? trim($row[3]) : date('Y-m-d'),
-            ];
-            
-            if ($customerModel->insert($data) === false) {
-                $failed++;
-            } else {
-                $inserted++;
-            }
-            
-            if ($current % 50 === 0) {
-                cache()->save('import_' . $uuid, ['total' => $total, 'current' => $current, 'done' => false], 1200);
-                if ($importRow) {
+            fgetcsv($handle); // Skip header
+
+            // Count total rows
+            $total = 0;
+            while (fgetcsv($handle) !== FALSE) { $total++; }
+            rewind($handle);
+            fgetcsv($handle); // Skip header again
+
+            // Create Failed Output File
+            $failedFilepath = WRITEPATH . 'uploads/imports/' . $uuid . '_failed.csv';
+            $failedHandle = fopen($failedFilepath, 'w');
+            fputcsv($failedHandle, ['Name', 'Email', 'Phone', 'Joining Date', 'Failure Reason']);
+
+            // Update database row
+            $bulkModel->update($importRow['id'], ['total_count' => $total, 'status' => 'processing']);
+            cache()->save('import_' . $uuid, ['total' => $total, 'current' => 0, 'done' => false], 1200);
+
+            $inserted = 0;
+            $failed = 0;
+            $current = 0;
+
+            while (($row = fgetcsv($handle)) !== FALSE) {
+                $name = isset($row[0]) ? trim($row[0]) : '';
+                $email = isset($row[1]) ? trim($row[1]) : '';
+                $phone = isset($row[2]) ? trim($row[2]) : '';
+                $joiningDate = isset($row[3]) ? trim($row[3]) : '';
+                
+                // Remove Excel formatting quotes if present
+                $phone = ltrim($phone, "'");
+                
+                if (stripos($phone, 'e') !== false && is_numeric($phone)) {
+                    $phone = sprintf('%.0f', (float) $phone);
+                }
+                
+                $current++;
+
+                if (empty($name) || empty($phone)) {
+                    $failed++;
+                    $reason = empty($name) ? 'Name is empty' : 'Phone is empty';
+                    fputcsv($failedHandle, [$name, $email, $phone, $joiningDate, $reason]);
+                    continue; 
+                }
+                
+                $data = [
+                    'name'         => $name,
+                    'email'        => $email,
+                    'phone'        => $phone,
+                    'joining_date' => !empty($joiningDate) ? $joiningDate : date('Y-m-d'),
+                ];
+                
+                // Manual check for uniqueness (ignoring soft deleted automatically)
+                if ($customerModel->where('phone', $phone)->first()) {
+                    $failed++;
+                    fputcsv($failedHandle, [$name, $email, $phone, $joiningDate, 'Phone already registered']);
+                    continue;
+                }
+
+                if ($customerModel->insert($data) === false) {
+                    $failed++;
+                    $reason = implode(', ', $customerModel->errors());
+                    fputcsv($failedHandle, [$name, $email, $phone, $joiningDate, $reason]);
+                } else {
+                    $inserted++;
+                }
+                
+                if ($current % 50 === 0) {
+                    cache()->save('import_' . $uuid, ['total' => $total, 'current' => $current, 'done' => false], 1200);
                     $bulkModel->update($importRow['id'], [
                         'inserted_count' => $inserted,
                         'failed_count'   => $failed
                     ]);
                 }
             }
-        }
-        fclose($handle);
-        cache()->save('import_' . $uuid, ['total' => $total, 'current' => $total, 'done' => true], 1200);
-        
-        if ($importRow) {
+            fclose($handle);
+            fclose($failedHandle);
+            cache()->save('import_' . $uuid, ['total' => $total, 'current' => $total, 'done' => true], 1200);
+            
             $bulkModel->update($importRow['id'], [
                 'inserted_count' => $inserted,
                 'failed_count'   => $failed,
                 'status'         => 'completed'
             ]);
-        }
+            CLI::write('Import completed of ' . $total . ' items.');
 
-        // Keep file for future downloads
-        // @unlink($filepath);
-        CLI::write('Import completed of ' . $total . ' items.');
+        } catch (\Exception $e) {
+            if (isset($handle) && is_resource($handle)) fclose($handle);
+            if (isset($failedHandle) && is_resource($failedHandle)) fclose($failedHandle);
+            $bulkModel->update($importRow['id'], ['status' => 'failed']);
+            file_put_contents($logFile, "Exception: " . $e->getMessage() . "\n", FILE_APPEND);
+            CLI::error('Import failed: ' . $e->getMessage());
+        }
     }
 }
