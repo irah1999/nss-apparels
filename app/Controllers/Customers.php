@@ -29,6 +29,8 @@ class Customers extends BaseController
         $orderDir = $request->getPost('order')[0]['dir'];
 
         $builder = $customerModel->builder();
+        $builder->where('status', 1);
+        $builder->where('deleted_at', null);
 
         // Total records
         $totalRecords = $builder->countAllResults(false);
@@ -91,7 +93,13 @@ class Customers extends BaseController
     {
         $customerModel = new \App\Models\CustomerModel();
         $id = $this->request->getPost('id');
+        
+        // Update status to 0
+        $customerModel->update($id, ['status' => 0]);
+        
+        // Soft delete
         $customerModel->delete($id);
+        
         return $this->response->setJSON(['status' => 'success', 'message' => 'Customer deleted successfully']);
     }
 

@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 
 <?= $this->section('content') ?>
-<div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
+<div id="customerListing" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden"
     x-data="{
         customers: [],
         searchQuery: '',
@@ -542,7 +542,7 @@
 
 <script>
     function globalReload() {
-        const root = document.querySelector('[x-data]');
+        const root = document.getElementById('customerListing');
         if (root && root._x_dataStack) root._x_dataStack[0].loadCustomers();
     }
 
