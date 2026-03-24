@@ -801,4 +801,9 @@ class Customers extends BaseController
         $writer->save('php://output');
         exit;
     }
+
+    public function joinCommunity()
+    {
+        return redirect()->to('https://chat.whatsapp.com/LSRiyk1xdAmFNaIrVhybO4');
+    }
 }
