@@ -18,6 +18,7 @@ $routes->get('api/product/(:num)', 'Api::product/$1');
 
 $routes->get('contact', 'Contact::index');
 $routes->post('contact/submit', 'Contact::submit');
+$routes->get('join-community', 'Customers::joinCommunity');
 
 
 $routes->group('api/whatsapp', function($routes) {
